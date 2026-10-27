@@ -1,0 +1,14 @@
+{
+  "name": "aynivoz-ai",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MVP abierto en español para organizar problemas comunitarios de agua y saneamiento en Perú.",
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server/index.js",
+    "test": "node --test",
+    "check": "node scripts/check.js"
+  }
+}

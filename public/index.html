@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="es-PE">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Organiza problemas comunitarios de agua y saneamiento en Perú y prepara solicitudes para revisión humana.">
+  <title>AyniVoz AI · Del problema a una solicitud clara</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <a class="skip" href="#reporte">Ir al formulario</a>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="AyniVoz AI, inicio"><span class="mark" aria-hidden="true">≈</span>AyniVoz <span>AI</span></a>
+    <nav aria-label="Navegación principal"><a href="#reporte">Preparar solicitud</a><a href="#canales">Canales oficiales</a></nav>
+    <span class="tag">MVP de código abierto</span>
+  </header>
+  <main>
+    <section class="intro" aria-labelledby="intro-title">
+      <div><p class="intro-note">Agua y saneamiento · Perú</p><h1 id="intro-title">Tu comunidad tiene voz.<br>Ayudemos a ponerla por escrito.</h1>
+      <p>Organiza lo que está pasando y prepara una solicitud clara para revisarla y presentarla tú por el canal oficial.</p></div>
+      <div class="water-lines" aria-hidden="true"><span>≈</span><span>≈</span><span>≈</span></div>
+    </section>
+    <div class="notice"><strong>Tú decides qué compartir.</strong> El reporte queda en esta pestaña y se pierde al recargar. No lo enviamos a una autoridad. No incluyas nombres, DNI, teléfonos, direcciones exactas ni datos de salud.</div>
+    <noscript><p class="notice">Activa JavaScript para preparar borradores locales. Puedes consultar los <a href="https://www.gob.pe/institucion/sunass/contacto-y-numeros-de-emergencias" rel="noreferrer">canales de SUNASS</a> directamente.</p></noscript>
+    <div class="workspace">
+      <section class="form-panel" id="reporte" aria-labelledby="report-title">
+        <div class="section-heading"><span class="step">1</span><div><h2 id="report-title">Cuéntanos el problema</h2><p>Solo observaciones y una zona general. Los campos son obligatorios.</p></div></div>
+        <form id="report-form" autocomplete="off">
+          <div class="two-columns">
+            <div><label for="category">¿Qué está pasando?</label><select id="category" name="category" required><option value="">Selecciona un problema</option><option value="sin-agua">Falta o interrupción de agua</option><option value="baja-presion">Baja presión de agua</option><option value="fuga">Fuga o rotura de tubería</option><option value="desague">Atoro o aniego de desagüe</option><option value="calidad">Cambio aparente en el agua</option></select></div>
+            <div><label for="scope">¿A quiénes afecta?</label><select id="scope" name="scope" required><option value="">Selecciona el alcance</option><option value="hogar">Una vivienda</option><option value="comunidad">Varias viviendas o una comunidad</option></select></div>
+          </div>
+          <label for="locality">Distrito o zona general</label><input id="locality" name="locality" minlength="2" maxlength="80" placeholder="Ejemplo ficticio: distrito de prueba" aria-describedby="locality-help" required><p class="help" id="locality-help">Sin calles, número de vivienda ni ubicación precisa.</p>
+          <label for="provider">¿Quién presta el servicio?</label><select id="provider" name="provider" required><option value="desconocido">No lo sé / falta confirmar</option><option value="sedapal">Confirmé que mi prestador es Sedapal</option><option value="otro">Otro prestador, JASS o municipalidad</option></select>
+          <label for="description">Describe lo que observaste</label><textarea id="description" name="description" rows="5" minlength="20" maxlength="1200" placeholder="Ejemplo ficticio: varias viviendas de la zona reportan una interrupción del servicio. Falta confirmar la causa y el alcance." aria-describedby="description-help" required></textarea><p class="help" id="description-help">Entre 20 y 1200 caracteres. No atribuyas culpas ni incluyas datos personales.</p>
+          <label class="checkbox"><input type="checkbox" id="privacy" name="privacy" required><span>Revisé que el reporte no contiene datos personales y entiendo que se guarda solo en esta pestaña.</span></label>
+          <div class="actions"><button type="submit" class="primary">Registrar y preparar borrador</button><button type="button" id="demo" class="secondary">Probar ejemplo ficticio</button></div>
+        </form>
+        <p id="message" class="message" role="status" aria-live="polite"></p>
+      </section>
+      <aside class="guide" aria-labelledby="guide-title">
+        <h2 id="guide-title">Antes de empezar</h2>
+        <ol><li><strong>Describe hechos.</strong> Lo que ves, sin suponer causas ni responsables.</li><li><strong>Confirma el prestador.</strong> Una ubicación por sí sola no determina a quién presentar.</li><li><strong>Revisa y presenta tú.</strong> Este MVP no realiza trámites ni envía reportes.</li></ol>
+        <div class="urgent"><strong>¿Hay peligro inmediato?</strong><p>No esperes al borrador. Busca un lugar seguro y contacta al servicio de emergencia o prestador competente por sus canales oficiales.</p></div>
+        <p class="help">No es una herramienta de diagnóstico, asesoría legal ni atención de emergencias.</p>
+        <button type="button" id="erase" class="text-button">Borrar todo de esta pestaña</button>
+      </aside>
+    </div>
+    <section id="draft-section" class="draft-panel" aria-labelledby="draft-title" hidden>
+      <div class="section-heading"><span class="step">2</span><div><h2 id="draft-title">Revisa tu solicitud</h2><p id="report-status">Reporte registrado en memoria de esta pestaña. No presentado.</p></div></div>
+      <p class="review-note">Esto es un borrador libre. El canal oficial puede requerir su propio formato y datos adicionales. Complétalos directamente allí.</p>
+      <label for="draft">Borrador editable</label><textarea id="draft" rows="18" maxlength="8000" spellcheck="true"></textarea>
+      <details class="ai-box"><summary>Ayuda opcional de Claude</summary><p id="ai-status">Comprobando disponibilidad…</p><p>Si está habilitado por quien opera el servidor, puedes pedir una frase alternativa. Se enviarán a Anthropic solo el <strong>tipo de problema y el alcance</strong>. La descripción, zona y borrador no se enviarán. El proveedor puede procesar estos datos según sus condiciones.</p><label class="checkbox"><input type="checkbox" id="ai-consent"><span>Autorizo enviar esas dos opciones a Anthropic para obtener una sugerencia que revisaré.</span></label><button type="button" id="ask-ai" class="secondary" disabled>Pedir frase opcional</button><p id="ai-result" class="suggestion" role="status"></p><p class="help">La sugerencia no modifica el borrador. Si sirve, puedes incorporarla manualmente después de revisarla.</p></details>
+      <label class="checkbox"><input type="checkbox" id="reviewed"><span>Revisé los hechos, el destinatario y el texto. Entiendo que descargar no equivale a presentar una solicitud.</span></label>
+      <button type="button" id="download" class="primary" disabled>Descargar borrador revisado (.txt)</button>
+    </section>
+    <section class="channels" id="canales" aria-labelledby="channels-title">
+      <div class="section-heading"><span class="step">3</span><div><h2 id="channels-title">Elige un canal oficial</h2><p>Consulta las fuentes antes de compartir información o presentar una solicitud.</p></div></div>
+      <p id="catalog-status" class="help"></p><p>Directorio inicial y limitado. No identifica automáticamente la autoridad competente ni incluye todos los prestadores del Perú.</p>
+      <div id="channel-list" class="channel-list"></div>
+    </section>
+  </main>
+  <footer><p><strong>AyniVoz AI</strong> · Una herramienta comunitaria en construcción.</p><p>Sin afiliación con SUNASS, Sedapal ni Anthropic. No se afirma impacto validado. El código abierto no garantiza elegibilidad para Claude for OSS.</p><a href="https://github.com/Richardsch1/aynivoz-ai" rel="noreferrer">Código, documentación y licencia MIT</a></footer>
+</body>
+</html>
