@@ -70,6 +70,21 @@ test('rechaza datos adicionales y ausencia de consentimiento antes del proveedor
   for (const body of [{ ...input, description: 'privado' }, { ...input, locality: 'privado' }, { ...input, consent: false }, { ...input, category: '__proto__' }, null]) assert.equal((await post(body)).status, 400);
   assert.equal(calls, 0);
 });
+test('API solo acepta opciones como cadenas primitivas sin llamar al proveedor', async t => {
+  let calls = 0;
+  const { post } = await instance(t, { env, fetchImpl: async () => {
+    calls += 1;
+    return Response.json({ content: [{ type: 'text', text: sentence }] });
+  } });
+  for (const field of ['category', 'scope']) {
+    const valid = input[field];
+    for (const bad of [[valid], [[valid]], {}, { toString: valid }, null, 1, true]) {
+      const response = await post({ ...input, [field]: bad });
+      assert.equal(response.status, 400, `${field}: rechaza ${JSON.stringify(bad)}`);
+    }
+  }
+  assert.equal(calls, 0);
+});
 test('adaptador llama solo al destino fijo con opciones mínimas y secreto en cabecera', async () => {
   const result = await suggestSentence(input, { env, fetchImpl: async (url, options) => {
     assert.equal(url, 'https://api.anthropic.com/v1/messages');

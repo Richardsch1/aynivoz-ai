@@ -10,6 +10,8 @@ No se piden datos de identidad ni se aceptan adjuntos o geolocalización. El det
 
 Con Claude activado se transmiten solo dos valores de listas cerradas, después de la autorización de la persona. No se promete anonimato ni retención cero por parte del proveedor. La integración usa la API comercial de la cuenta del operador; revisa sus términos, retención y costos antes de habilitarla. Revocar consentimiento no revierte datos ya enviados.
 
+Las opciones del reporte y de la ayuda de IA deben ser cadenas de texto primitivas incluidas en sus listas cerradas. Se rechazan listas, objetos, números y booleanos sin convertirlos a texto. En la API, una opción con tipo inválido devuelve HTTP 400 antes de contactar al proveedor.
+
 ## Amenazas y controles
 
 | Riesgo | Control y límite |

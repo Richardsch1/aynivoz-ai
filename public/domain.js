@@ -25,7 +25,7 @@ export function containsSensitivePattern(value) {
 export function validateReport(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new ValidationError('Revisa el reporte.');
   for (const [field, allowed] of [['category', CATEGORIES], ['scope', SCOPES], ['provider', PROVIDERS]]) {
-    if (!Object.hasOwn(allowed, raw[field])) throw new ValidationError('Selecciona un tipo, alcance y prestador válidos.');
+    if (typeof raw[field] !== 'string' || !Object.hasOwn(allowed, raw[field])) throw new ValidationError('Selecciona un tipo, alcance y prestador válidos.');
   }
   if (raw.privacy !== true) throw new ValidationError('Confirma que revisaste la privacidad.');
   const locality = text(raw.locality, 'Distrito o zona general', 2, 80);
@@ -43,7 +43,7 @@ export function createDraft(raw) {
 
 export function aiPayload(report, consent) {
   if (consent !== true) throw new ValidationError('Autoriza el uso opcional de Claude.');
-  if (!report || !Object.hasOwn(CATEGORIES, report.category) || !Object.hasOwn(SCOPES, report.scope)) throw new ValidationError('Registra primero un reporte válido.');
+  if (!report || typeof report.category !== 'string' || typeof report.scope !== 'string' || !Object.hasOwn(CATEGORIES, report.category) || !Object.hasOwn(SCOPES, report.scope)) throw new ValidationError('Registra primero un reporte válido.');
   // Deliberately omit ALL free text, locality, provider, dates and citizen details.
   return { category: report.category, scope: report.scope, consent: true };
 }

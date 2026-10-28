@@ -2,7 +2,7 @@ import { CATEGORIES, SCOPES, ValidationError, containsSensitivePattern } from '.
 
 export function validateAiRequest(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw) || Object.keys(raw).sort().join(',') !== 'category,consent,scope') throw new ValidationError('Solo se aceptan tipo, alcance y consentimiento.');
-  if (raw.consent !== true || !Object.hasOwn(CATEGORIES, raw.category) || !Object.hasOwn(SCOPES, raw.scope)) throw new ValidationError('Confirma el consentimiento y las opciones del reporte.');
+  if (raw.consent !== true || typeof raw.category !== 'string' || typeof raw.scope !== 'string' || !Object.hasOwn(CATEGORIES, raw.category) || !Object.hasOwn(SCOPES, raw.scope)) throw new ValidationError('Confirma el consentimiento y las opciones del reporte.');
   return { category: raw.category, scope: raw.scope };
 }
 

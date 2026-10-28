@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateReport, createDraft, aiPayload, assertReviewedDraft } from '../public/domain.js';
+import { validateReport, createDraft, aiPayload, assertReviewedDraft, ValidationError } from '../public/domain.js';
 import { CHANNELS, channelsFor, catalogNeedsReview } from '../public/catalog.js';
 
 const example = { category: 'sin-agua', scope: 'comunidad', provider: 'desconocido', locality: 'Distrito ficticio', description: 'EJEMPLO FICTICIO. Se observa falta de agua en varias viviendas de la zona.', privacy: true };
@@ -15,6 +15,14 @@ test('exige confirmación de privacidad', () => assert.throws(() => validateRepo
 test('rechaza categorías, alcance y proveedor desconocidos', () => {
   for (const field of ['category', 'scope', 'provider']) {
     for (const bad of ['inventado', '__proto__', 'toString', null]) assert.throws(() => validateReport({ ...example, [field]: bad }));
+  }
+});
+test('reporte solo acepta opciones como cadenas primitivas', () => {
+  for (const field of ['category', 'scope', 'provider']) {
+    const valid = example[field];
+    for (const bad of [[valid], [[valid]], new String(valid), { toString: () => valid }, {}, null, undefined, 1, true]) {
+      assert.throws(() => validateReport({ ...example, [field]: bad }), ValidationError, `${field}: rechaza ${Object.prototype.toString.call(bad)}`);
+    }
   }
 });
 test('valida límites y tipos', () => {
@@ -47,6 +55,14 @@ test('descarga exige revisión humana y texto válido', () => {
 test('proyección de IA excluye texto, ubicación y prestador', () => {
   assert.deepEqual(aiPayload(example, true), { category: 'sin-agua', scope: 'comunidad', consent: true });
   assert.throws(() => aiPayload(example, false));
+});
+test('proyección de IA solo acepta opciones como cadenas primitivas', () => {
+  for (const field of ['category', 'scope']) {
+    const valid = example[field];
+    for (const bad of [[valid], [[valid]], new String(valid), { toString: () => valid }, {}, null, undefined, 1, true]) {
+      assert.throws(() => aiPayload({ ...example, [field]: bad }, true), ValidationError, `${field}: rechaza ${Object.prototype.toString.call(bad)}`);
+    }
+  }
 });
 test('catálogo tiene fuentes oficiales, evidencia, ámbito y fecha', () => {
   assert.equal(new Set(CHANNELS.map(c => c.id)).size, CHANNELS.length);
