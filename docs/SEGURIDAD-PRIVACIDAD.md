@@ -12,6 +12,8 @@ Con Claude activado se transmiten solo dos valores de listas cerradas, después 
 
 Las opciones del reporte y de la ayuda de IA deben ser cadenas de texto primitivas incluidas en sus listas cerradas. Se rechazan listas, objetos, números y booleanos sin convertirlos a texto. En la API, una opción con tipo inválido devuelve HTTP 400 antes de contactar al proveedor.
 
+Las sugerencias de IA con controles bidireccionales U+202A–U+202E, U+2066–U+2069 o DEL se descartan completas, al igual que los controles ya bloqueados por el adaptador. La API devuelve un error genérico sin incluir la frase rechazada; el borrador local sigue disponible. Este filtro no garantiza la seguridad semántica ni detecta todo carácter invisible: la revisión humana continúa siendo obligatoria.
+
 ## Amenazas y controles
 
 | Riesgo | Control y límite |

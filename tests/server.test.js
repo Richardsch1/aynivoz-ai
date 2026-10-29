@@ -109,6 +109,39 @@ test('rechaza respuestas con enlaces, números, HTML, vacías o excesivas', asyn
     await assert.rejects(suggestSentence(input, { env, fetchImpl: async () => Response.json({ content: [{ type: 'text', text: output }] }) }));
   }
 });
+test('rechaza controles de presentación en cualquier posición de la sugerencia', async () => {
+  const outputs = [
+    `\u202a${sentence}`, `Solicito\u202b revisar el servicio de agua.`, `${sentence}\u202c`,
+    `\u202d${sentence}`, `Solicito\u202e revisar el servicio de agua.`,
+    `${sentence}\u2066`, `\u2067${sentence}`, `Solicito\u2068 revisar el servicio de agua.`,
+    `${sentence}\u2069`, `Solicito\u007f revisar el servicio de agua.`,
+  ];
+  for (const output of outputs) {
+    await assert.rejects(suggestSentence(input, {
+      env, fetchImpl: async () => Response.json({ content: [{ type: 'text', text: output }] }),
+    }), { message: 'AI_UNSAFE_OUTPUT' });
+  }
+});
+test('rechazo de salida insegura no filtra la frase ni bloquea la siguiente solicitud', async t => {
+  let calls = 0;
+  const unsafe = 'EJEMPLO FICTICIO. Solicito\u202e revisar la atención de agua.';
+  const { url, post } = await instance(t, { env, fetchImpl: async () => {
+    calls += 1;
+    return Response.json({ content: [{ type: 'text', text: calls === 1 ? unsafe : sentence }] });
+  } });
+  const rejected = await post(input);
+  assert.equal(rejected.status, 502);
+  assert.deepEqual(await rejected.json(), {
+    error: 'No se pudo obtener una sugerencia segura. El borrador local sigue disponible.',
+  });
+  const localPage = await fetch(url);
+  assert.equal(localPage.status, 200);
+  assert.match(await localPage.text(), /id="report-form"/);
+  const recovered = await post(input);
+  assert.equal(recovered.status, 200);
+  assert.deepEqual(await recovered.json(), { sentence, reviewRequired: true });
+  assert.equal(calls, 2);
+});
 test('fallo HTTP del proveedor no se presenta como éxito', async () => {
   await assert.rejects(suggestSentence(input, { env, fetchImpl: async () => new Response('provider error', { status: 429 }) }));
 });

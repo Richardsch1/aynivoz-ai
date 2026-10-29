@@ -26,6 +26,6 @@ export async function suggestSentence(input, { env = process.env, fetchImpl = fe
   if (!response.ok) throw new Error('AI_UNAVAILABLE');
   const payload = await response.json();
   const sentence = payload.content?.filter(block => block.type === 'text').map(block => block.text).join(' ').trim();
-  if (typeof sentence !== 'string' || sentence.length < 15 || sentence.length > 650 || /[<>\d\u0000-\u001f]/u.test(sentence) || containsSensitivePattern(sentence)) throw new Error('AI_UNSAFE_OUTPUT');
+  if (typeof sentence !== 'string' || sentence.length < 15 || sentence.length > 650 || /[<>\d\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/u.test(sentence) || containsSensitivePattern(sentence)) throw new Error('AI_UNSAFE_OUTPUT');
   return sentence;
 }
