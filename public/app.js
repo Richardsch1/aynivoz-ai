@@ -13,6 +13,8 @@ function invalidate() {
   controller?.abort();
   pending = false;
   report = null;
+  $('report-error').hidden = true;
+  $('report-error-detail').textContent = '';
   $('draft').value = '';
   $('draft-section').hidden = true;
   $('reviewed').checked = false;
@@ -68,7 +70,12 @@ $('report-form').addEventListener('submit', event => {
     $('draft-section').scrollIntoView({ block: 'start' });
     $('draft').focus({ preventScroll: true });
     updateAiButton();
-  } catch (error) { $('message').textContent = error.message; }
+  } catch (error) {
+    $('message').textContent = '';
+    $('report-error-detail').textContent = error.message;
+    $('report-error').hidden = false;
+    $('report-error').focus();
+  }
 });
 $('demo').addEventListener('click', () => {
   invalidate();

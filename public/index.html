@@ -26,6 +26,11 @@
     <div class="workspace">
       <section class="form-panel" id="reporte" aria-labelledby="report-title">
         <div class="section-heading"><span class="step">1</span><div><h2 id="report-title">Cuéntanos el problema</h2><p>Solo observaciones y una zona general. Los campos son obligatorios.</p></div></div>
+        <div id="report-error" class="message" role="group" tabindex="-1" aria-labelledby="report-error-title" aria-describedby="report-error-detail" hidden>
+          <p id="report-error-title"><strong>No se pudo registrar el reporte.</strong></p>
+          <p id="report-error-detail"></p>
+          <a href="#category">Volver a revisar el formulario</a>
+        </div>
         <form id="report-form" autocomplete="off">
           <div class="two-columns">
             <div><label for="category">¿Qué está pasando?</label><select id="category" name="category" required><option value="">Selecciona un problema</option><option value="sin-agua">Falta o interrupción de agua</option><option value="baja-presion">Baja presión de agua</option><option value="fuga">Fuga o rotura de tubería</option><option value="desague">Atoro o aniego de desagüe</option><option value="calidad">Cambio aparente en el agua</option></select></div>

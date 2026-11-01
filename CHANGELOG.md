@@ -1,5 +1,9 @@
 # Historial
 
+## 2026-11-01
+
+Los errores de validación local al registrar un reporte aparecen en un resumen con foco visible y un enlace para volver al formulario. Se conserva lo escrito, el aviso se limpia al editar y los reportes válidos siguen llevando el foco al borrador con revisión obligatoria antes de descargar.
+
 ## 2026-10-29
 
 El adaptador de Claude rechaza frases con controles bidireccionales explícitos o DEL, que el texto local ya bloqueaba. La API descarta la frase y devuelve un error genérico. Las pruebas de regresión comprueban ese rechazo, la disponibilidad del borrador local y la recuperación de la siguiente petición válida.
