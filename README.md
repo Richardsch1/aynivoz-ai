@@ -63,6 +63,8 @@ La persona debe autorizar cada interacción opcional. Se envían únicamente **t
 
 El destino HTTPS de la API es fijo; hay tiempo máximo de espera, una petición simultánea y seis intentos por minuto para toda la instancia. Los fallos conservan el flujo local. No se han hecho llamadas con una clave real para validar este MVP: el adaptador se prueba con respuestas simuladas. Revisa las condiciones vigentes de tratamiento y retención de datos de Anthropic antes de habilitarlo. La minimización no significa ausencia de procesamiento externo.
 
+El adaptador acepta únicamente respuestas finalizadas normalmente (`stop_reason: "end_turn"`) con bloques de texto. No procesa herramientas ni bloques de razonamiento. Si la respuesta queda cortada o tiene otro formato, la sugerencia se descarta y puedes continuar con el borrador local; no se hacen reintentos automáticos ni llamadas para completar la respuesta.
+
 Referencia técnica: [Messages API de Anthropic](https://platform.claude.com/docs/en/api/overview). El adaptador usa la versión estable `2023-06-01`, todavía documentada; el modelo se configura en servidor.
 
 ## Fuentes y cobertura

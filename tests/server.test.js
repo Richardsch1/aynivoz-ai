@@ -74,7 +74,7 @@ test('API solo acepta opciones como cadenas primitivas sin llamar al proveedor',
   let calls = 0;
   const { post } = await instance(t, { env, fetchImpl: async () => {
     calls += 1;
-    return Response.json({ content: [{ type: 'text', text: sentence }] });
+    return Response.json({ stop_reason: 'end_turn', content: [{ type: 'text', text: sentence }] });
   } });
   for (const field of ['category', 'scope']) {
     const valid = input[field];
@@ -94,9 +94,55 @@ test('adaptador llama solo al destino fijo con opciones mínimas y secreto en ca
     assert.equal(body.model, 'test-model');
     assert.deepEqual(JSON.parse(body.messages[0].content), { tipo: 'Falta o interrupción de agua', alcance: 'Varias viviendas o una comunidad' });
     assert.ok(!options.body.includes(env.ANTHROPIC_API_KEY));
-    return Response.json({ content: [{ type: 'text', text: sentence }] });
+    return Response.json({ stop_reason: 'end_turn', content: [{ type: 'text', text: sentence }] });
   } });
   assert.equal(result, sentence);
+});
+test('rechaza finalizaciones incompletas o no admitidas del proveedor', async () => {
+  for (const reason of ['max_tokens', 'stop_sequence', 'tool_use', 'pause_turn', 'refusal', null, undefined, 'unknown-test-reason']) {
+    await assert.rejects(suggestSentence(input, {
+      env, fetchImpl: async () => Response.json({ stop_reason: reason, content: [{ type: 'text', text: sentence }] }),
+    }), { message: 'AI_UNSAFE_OUTPUT' }, `finalización: ${String(reason)}`);
+  }
+});
+test('acepta varios bloques de texto y rechaza contenido malformado o no textual', async () => {
+  const parts = ['Solicito que se verifique el problema descrito', 'y se informe la atención que corresponda.'];
+  assert.equal(await suggestSentence(input, {
+    env, fetchImpl: async () => Response.json({ stop_reason: 'end_turn', content: parts.map(text => ({ type: 'text', text })) }),
+  }), parts.join(' '));
+  const malformed = [
+    [{ type: 'text', text: {} }], [{ type: 'text', text: [sentence] }],
+    null, undefined, {}, 'texto', [], [null], ['texto'],
+    [{ type: 'text', text: null }], [{ type: 'text', text: true }], [{ type: 'text', text: 42 }], [{ type: 'text' }],
+    [{ type: 'text', text: sentence }, { type: 'tool_use', id: 'test-only-tool', name: 'test_only_tool', input: {} }],
+    [{ type: 'thinking', thinking: 'EJEMPLO FICTICIO' }, { type: 'text', text: sentence }],
+  ];
+  for (const content of malformed) {
+    await assert.rejects(suggestSentence(input, {
+      env, fetchImpl: async () => Response.json({ stop_reason: 'end_turn', content }),
+    }), { message: 'AI_UNSAFE_OUTPUT' });
+  }
+});
+test('API descarta una respuesta truncada sin reintentar y admite la siguiente válida', async t => {
+  let calls = 0;
+  const partial = 'EJEMPLO FICTICIO. Solicito que se verifique el problema y que se';
+  const { url, post } = await instance(t, { env, fetchImpl: async () => {
+    calls += 1;
+    return Response.json({ stop_reason: calls === 1 ? 'max_tokens' : 'end_turn', content: [{ type: 'text', text: calls === 1 ? partial : sentence }] });
+  } });
+  const rejected = await post(input);
+  assert.equal(rejected.status, 502);
+  assert.deepEqual(await rejected.json(), {
+    error: 'No se pudo obtener una sugerencia segura. El borrador local sigue disponible.',
+  });
+  assert.equal(calls, 1);
+  const localPage = await fetch(url);
+  assert.equal(localPage.status, 200);
+  assert.match(await localPage.text(), /id="report-form"/);
+  const recovered = await post(input);
+  assert.equal(recovered.status, 200);
+  assert.deepEqual(await recovered.json(), { sentence, reviewRequired: true });
+  assert.equal(calls, 2);
 });
 test('fallos y errores del proveedor no filtran datos ni secretos al cliente', async t => {
   const { post } = await instance(t, { env, fetchImpl: async () => { throw new Error(env.ANTHROPIC_API_KEY); } });
@@ -106,7 +152,7 @@ test('fallos y errores del proveedor no filtran datos ni secretos al cliente', a
 });
 test('rechaza respuestas con enlaces, números, HTML, vacías o excesivas', async () => {
   for (const output of ['', 'x'.repeat(651), 'Contactar https://example.invalid para atención.', 'Contactar al número 123 para atención.', '<b>Solicito atención del problema descrito.</b>']) {
-    await assert.rejects(suggestSentence(input, { env, fetchImpl: async () => Response.json({ content: [{ type: 'text', text: output }] }) }));
+    await assert.rejects(suggestSentence(input, { env, fetchImpl: async () => Response.json({ stop_reason: 'end_turn', content: [{ type: 'text', text: output }] }) }));
   }
 });
 test('rechaza controles de presentación en cualquier posición de la sugerencia', async () => {
@@ -118,7 +164,7 @@ test('rechaza controles de presentación en cualquier posición de la sugerencia
   ];
   for (const output of outputs) {
     await assert.rejects(suggestSentence(input, {
-      env, fetchImpl: async () => Response.json({ content: [{ type: 'text', text: output }] }),
+      env, fetchImpl: async () => Response.json({ stop_reason: 'end_turn', content: [{ type: 'text', text: output }] }),
     }), { message: 'AI_UNSAFE_OUTPUT' });
   }
 });
@@ -127,7 +173,7 @@ test('rechazo de salida insegura no filtra la frase ni bloquea la siguiente soli
   const unsafe = 'EJEMPLO FICTICIO. Solicito\u202e revisar la atención de agua.';
   const { url, post } = await instance(t, { env, fetchImpl: async () => {
     calls += 1;
-    return Response.json({ content: [{ type: 'text', text: calls === 1 ? unsafe : sentence }] });
+    return Response.json({ stop_reason: 'end_turn', content: [{ type: 'text', text: calls === 1 ? unsafe : sentence }] });
   } });
   const rejected = await post(input);
   assert.equal(rejected.status, 502);
@@ -147,7 +193,7 @@ test('fallo HTTP del proveedor no se presenta como éxito', async () => {
 });
 test('límite global de costo y recuperación después de la ventana', async t => {
   let time = 100000;
-  const { post } = await instance(t, { env, now: () => time, fetchImpl: async () => Response.json({ content: [{ type: 'text', text: sentence }] }) });
+  const { post } = await instance(t, { env, now: () => time, fetchImpl: async () => Response.json({ stop_reason: 'end_turn', content: [{ type: 'text', text: sentence }] }) });
   for (let i = 0; i < 6; i += 1) {
     const response = await post(input);
     assert.equal(response.status, 200);
@@ -161,7 +207,7 @@ test('solo permite una petición al proveedor a la vez', async t => {
   let release;
   let started;
   const began = new Promise(resolve => { started = resolve; });
-  const { post } = await instance(t, { env, fetchImpl: async () => { started(); await new Promise(resolve => { release = resolve; }); return Response.json({ content: [{ type: 'text', text: sentence }] }); } });
+  const { post } = await instance(t, { env, fetchImpl: async () => { started(); await new Promise(resolve => { release = resolve; }); return Response.json({ stop_reason: 'end_turn', content: [{ type: 'text', text: sentence }] }); } });
   const first = post(input);
   await began;
   assert.equal((await post(input)).status, 429);

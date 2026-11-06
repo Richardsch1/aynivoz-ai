@@ -14,6 +14,8 @@ Las opciones del reporte y de la ayuda de IA deben ser cadenas de texto primitiv
 
 Las sugerencias de IA con controles bidireccionales U+202A–U+202E, U+2066–U+2069 o DEL se descartan completas, al igual que los controles ya bloqueados por el adaptador. La API devuelve un error genérico sin incluir la frase rechazada; el borrador local sigue disponible. Este filtro no garantiza la seguridad semántica ni detecta todo carácter invisible: la revisión humana continúa siendo obligatoria.
 
+Antes de unir el contenido del proveedor, el adaptador exige `stop_reason: "end_turn"` y una lista no vacía de bloques `text` cuyo contenido sea una cadena. Descarta respuestas truncadas, motivos de finalización ausentes o no admitidos, otros tipos de bloque y valores no textuales; no procesa herramientas ni bloques de razonamiento. Un rechazo mantiene el error HTTP 502 genérico y no provoca una llamada de continuación ni un reintento automático. La [documentación de motivos de finalización de Anthropic](https://platform.claude.com/docs/en/build-with-claude/handling-stop-reasons) distingue el fin normal de los límites de generación; finalizar normalmente no certifica la exactitud de la frase.
+
 ## Amenazas y controles
 
 | Riesgo | Control y límite |

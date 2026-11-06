@@ -2,6 +2,20 @@
 
 Este registro describe cambios y comprobaciones realmente realizados. No representa uso comunitario ni resultados de impacto.
 
+## 2026-11-06 · Validación de respuestas completas y textuales
+
+**Problema reproducido:** una respuesta simulada con `stop_reason: "max_tokens"` y una frase cortada se aceptaba como sugerencia. Un bloque cuyo valor `text` era un objeto vacío también se convertía a `[object Object]` y superaba el filtro de longitud. No se observó un incidente con usuarios ni se hicieron llamadas reales a Claude.
+
+**Cambio:** antes de unir los bloques, el adaptador exige finalización normal (`end_turn`) y una lista no vacía de bloques de texto con valores de tipo cadena. Rechaza truncamientos, motivos ausentes o no admitidos y contenido de otros tipos. No procesa herramientas ni razonamiento. Mantiene los filtros de salida, la revisión humana y el error HTTP 502 genérico, sin devolver la frase rechazada ni hacer reintentos automáticos. El borrador local sigue disponible.
+
+**Fuente técnica:** [motivos de finalización de la API de Anthropic](https://platform.claude.com/docs/en/build-with-claude/handling-stop-reasons), consultada el 6 de noviembre de 2026. El fin normal no garantiza que una frase sea correcta o apropiada.
+
+**Verificación local:** Windows, Node v24.12.0. Con las simulaciones actualizadas, las 17 pruebas previas de servidor pasaron y las tres regresiones nuevas fallaron antes de corregir el adaptador. Después del cambio, la suite completa aprobó 36 de 36 pruebas. Se comprobaron motivos ausentes o no admitidos, bloques malformados, aceptación de varios bloques de texto válidos y recuperación HTTP 502 → 200 sin reintentos automáticos ni devolución de la frase rechazada. `npm run check` y `git diff --check` terminaron sin errores; `npm audit --omit=dev --audit-level=high` no reportó vulnerabilidades. Las respuestas fueron simuladas, sin clave real de Anthropic ni datos de ciudadanos. No se hizo una nueva prueba de navegador en esta revisión.
+
+El resultado remoto de este cambio debe consultarse en [GitHub Actions](https://github.com/Richardsch1/aynivoz-ai/actions); las comprobaciones locales no confirman por sí solas CI en Node 22 y 24.
+
+**Próximos pasos:** continuar las comprobaciones de accesibilidad con lectores de pantalla y otros navegadores, y evaluar mensajes asociados a campos concretos. El adaptador continúa sin validación con una clave o modelo real; esa prueba requiere consentimiento y presupuesto propios, como se indica en el README. No se atribuye uso ni impacto comunitario validado.
+
 ## 2026-11-01 · Foco y recuperación de errores del reporte
 
 **Problema reproducido:** en Chrome, al registrar con Enter un reporte ficticio que contenía un correo de prueba, la validación local mostraba un mensaje pero el foco permanecía en el botón de registro. No había un enlace desde el mensaje para volver a los campos.

@@ -1,5 +1,9 @@
 # Historial
 
+## 2026-11-06
+
+La ayuda opcional de Claude exige una respuesta finalizada normalmente y formada por bloques de texto válidos antes de preparar la sugerencia. Descarta resultados cortados, motivos de finalización inesperados y valores que antes podían convertirse a texto por coerción. No añade reintentos automáticos ni cambia el borrador local.
+
 ## 2026-11-01
 
 Los errores de validación local al registrar un reporte aparecen en un resumen con foco visible y un enlace para volver al formulario. Se conserva lo escrito, el aviso se limpia al editar y los reportes válidos siguen llevando el foco al borrador con revisión obligatoria antes de descargar.
