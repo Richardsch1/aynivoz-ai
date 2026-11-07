@@ -1,5 +1,9 @@
 # Historial
 
+## 2026-11-07
+
+El resumen de errores del reporte enlaza al campo identificado y lo asocia al mensaje sin retirar sus ayudas existentes. Las marcas se limpian al editar, cambiar de error, cargar el ejemplo, borrar o registrar correctamente. Los patrones sensibles repartidos entre campos siguen bloqueados y conservan el aviso general.
+
 ## 2026-11-06
 
 La ayuda opcional de Claude exige una respuesta finalizada normalmente y formada por bloques de texto válidos antes de preparar la sugerencia. Descarta resultados cortados, motivos de finalización inesperados y valores que antes podían convertirse a texto por coerción. No añade reintentos automáticos ni cambia el borrador local.

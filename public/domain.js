@@ -8,13 +8,18 @@ export const CATEGORIES = Object.freeze({
 export const SCOPES = Object.freeze({ hogar: 'Una vivienda', comunidad: 'Varias viviendas o una comunidad' });
 export const PROVIDERS = Object.freeze({ desconocido: 'Por confirmar', sedapal: 'Sedapal (confirmado por la persona)', otro: 'Otro prestador / JASS / municipalidad (por confirmar)' });
 
-export class ValidationError extends Error {}
+export class ValidationError extends Error {
+  constructor(message, field) {
+    super(message);
+    if (field !== undefined) this.field = field;
+  }
+}
 
-export function text(value, label, min, max) {
-  if (typeof value !== 'string') throw new ValidationError(`${label}: ingresa texto.`);
+export function text(value, label, min, max, field) {
+  if (typeof value !== 'string') throw new ValidationError(`${label}: ingresa texto.`, field);
   const cleaned = value.normalize('NFC').trim();
-  if (cleaned.length < min || cleaned.length > max) throw new ValidationError(`${label}: usa entre ${min} y ${max} caracteres.`);
-  if (/[\u0000-\u0008\u000b-\u001f\u007f\u202a-\u202e\u2066-\u2069<>]/u.test(cleaned)) throw new ValidationError(`${label}: elimina etiquetas o caracteres de control.`);
+  if (cleaned.length < min || cleaned.length > max) throw new ValidationError(`${label}: usa entre ${min} y ${max} caracteres.`, field);
+  if (/[\u0000-\u0008\u000b-\u001f\u007f\u202a-\u202e\u2066-\u2069<>]/u.test(cleaned)) throw new ValidationError(`${label}: elimina etiquetas o caracteres de control.`, field);
   return cleaned;
 }
 
@@ -25,12 +30,15 @@ export function containsSensitivePattern(value) {
 export function validateReport(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new ValidationError('Revisa el reporte.');
   for (const [field, allowed] of [['category', CATEGORIES], ['scope', SCOPES], ['provider', PROVIDERS]]) {
-    if (typeof raw[field] !== 'string' || !Object.hasOwn(allowed, raw[field])) throw new ValidationError('Selecciona un tipo, alcance y prestador válidos.');
+    if (typeof raw[field] !== 'string' || !Object.hasOwn(allowed, raw[field])) throw new ValidationError('Selecciona un tipo, alcance y prestador válidos.', field);
   }
-  if (raw.privacy !== true) throw new ValidationError('Confirma que revisaste la privacidad.');
-  const locality = text(raw.locality, 'Distrito o zona general', 2, 80);
-  const description = text(raw.description, 'Descripción', 20, 1200);
-  if (containsSensitivePattern(`${locality} ${description}`)) throw new ValidationError('Elimina números de identificación, teléfonos, correos y enlaces. Añade datos personales solo en el canal oficial.');
+  if (raw.privacy !== true) throw new ValidationError('Confirma que revisaste la privacidad.', 'privacy');
+  const locality = text(raw.locality, 'Distrito o zona general', 2, 80, 'locality');
+  const description = text(raw.description, 'Descripción', 20, 1200, 'description');
+  if (containsSensitivePattern(`${locality} ${description}`)) {
+    const field = containsSensitivePattern(locality) ? 'locality' : containsSensitivePattern(description) ? 'description' : undefined;
+    throw new ValidationError('Elimina números de identificación, teléfonos, correos y enlaces. Añade datos personales solo en el canal oficial.', field);
+  }
   // Allowlist: do not propagate extra keys, attachments, identifiers or precise coordinates.
   return { category: raw.category, scope: raw.scope, provider: raw.provider, locality, description };
 }

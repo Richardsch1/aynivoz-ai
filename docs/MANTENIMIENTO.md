@@ -2,6 +2,24 @@
 
 Este registro describe cambios y comprobaciones realmente realizados. No representa uso comunitario ni resultados de impacto.
 
+## 2026-11-07 · Errores asociados al campo del reporte
+
+**Problema confirmado en código y pruebas:** el enlace del resumen siempre llevaba al selector inicial, incluso cuando la validación detectaba un error en la descripción o la zona. Los campos no se asociaban con el mensaje de error.
+
+**Cambio:** los errores locales del reporte pueden identificar un campo conocido. El cliente usa una lista cerrada de seis campos para dirigir el enlace, marcar `aria-invalid` y añadir el mensaje a `aria-describedby` conservando las ayudas existentes. Al limpiar o sustituir el error se retiran solo la marca y la asociación añadida por esta función. El foco inicial permanece en el resumen y los campos conservan su contenido.
+
+La comprobación conjunta de patrones sensibles se conserva: si el patrón está repartido entre zona y descripción y no se puede atribuir a un único campo, se muestra el aviso general. Los mensajes no reproducen los datos que provocaron el rechazo. Los metadatos del campo no se añaden a las respuestas de la API ni a las peticiones a Claude.
+
+**Verificación local:** Windows, Node v24.12.0. Antes del cambio, las pruebas de dominio y cliente obtuvieron 17 aprobadas y cuatro fallos esperados en la nueva atribución de campos y sus asociaciones. Después del cambio, la suite completa aprobó 41 de 41 pruebas. Se verificaron la conservación de ayudas, la retirada de la marca anterior, la ausencia de asociaciones duplicadas, la limpieza al editar/ejemplo/borrado/éxito, el aviso general para patrones repartidos y mensajes sin reproducir el contenido sensible. `npm run check` y `git diff --check` terminaron sin errores; `npm audit --omit=dev --audit-level=high` no reportó vulnerabilidades. Los casos usan datos ficticios y un DOM mínimo simulado para el cliente; no se llamó a Claude con una clave real.
+
+**Límite de esta revisión:** el conector de pruebas del navegador falló al navegar a la aplicación local. No se confirmó esta mejora en Chrome ni con lectores de pantalla; las simulaciones no sustituyen esas comprobaciones.
+
+El resultado remoto de este cambio debe consultarse en [GitHub Actions](https://github.com/Richardsch1/aynivoz-ai/actions); los resultados locales no confirman por sí solos CI en Node 22 y 24.
+
+**Referencia de diseño:** [notificaciones de formularios de W3C WAI](https://www.w3.org/WAI/tutorials/forms/notifications/), consultada el 7 de noviembre de 2026. No se acredita conformidad con WCAG ni una evaluación con lectores de pantalla.
+
+**Próximos pasos:** comprobar el enlace y el anuncio de errores por campo en un navegador real y con lectores de pantalla; mantener pendiente la evaluación en otros navegadores y con personas usuarias. No se atribuye uso ni impacto comunitario validado.
+
 ## 2026-11-06 · Validación de respuestas completas y textuales
 
 **Problema reproducido:** una respuesta simulada con `stop_reason: "max_tokens"` y una frase cortada se aceptaba como sugerencia. Un bloque cuyo valor `text` era un objeto vacío también se convertía a `[object Object]` y superaba el filtro de longitud. No se observó un incidente con usuarios ni se hicieron llamadas reales a Claude.

@@ -29,6 +29,39 @@ test('valida límites y tipos', () => {
   for (const description of [null, 'breve', 'x'.repeat(1201)]) assert.throws(() => validateReport({ ...example, description }));
   for (const locality of [undefined, 'x', 'x'.repeat(81)]) assert.throws(() => validateReport({ ...example, locality }));
 });
+test('errores de validación del reporte identifican el campo que debe revisarse', () => {
+  const cases = [
+    ['category', 'inventado'], ['scope', ['comunidad']], ['provider', 'inventado'], ['privacy', false],
+    ['locality', null], ['locality', 'x'], ['locality', '<zona ficticia>'],
+    ['description', null], ['description', 'breve'], ['description', 'EJEMPLO FICTICIO. Texto\u202e oculto para probar la validación.'],
+  ];
+  for (const [field, value] of cases) {
+    assert.throws(() => validateReport({ ...example, [field]: value }),
+      error => error instanceof ValidationError && error.field === field, field);
+  }
+});
+test('patrones sensibles identifican zona o descripción sin copiar su contenido al error', () => {
+  for (const field of ['locality', 'description']) {
+    const value = 'EJEMPLO FICTICIO. Correo persona@example.invalid para consultar.';
+    assert.throws(() => validateReport({ ...example, [field]: value }), error => {
+      assert.ok(error instanceof ValidationError);
+      assert.equal(error.field, field);
+      assert.match(error.message, /Elimina.*correos/);
+      assert.ok(!error.message.includes('persona@example.invalid'));
+      return true;
+    });
+  }
+});
+test('patrón repartido entre zona y descripción sigue rechazado sin atribuirlo a un campo', () => {
+  assert.throws(() => validateReport({
+    ...example, locality: 'Zona ficticia 000', description: '0000: EJEMPLO FICTICIO. Se observa una interrupción de agua.',
+  }), error => {
+    assert.ok(error instanceof ValidationError);
+    assert.match(error.message, /Elimina números de identificación/);
+    assert.equal(error.field, undefined);
+    return true;
+  });
+});
 test('rechaza patrones obvios de datos sensibles, enlaces, HTML y controles', () => {
   for (const detail of ['DNI 00000000', 'correo persona@example.invalid', 'teléfono +51 000 000 000', 'sitio https://example.invalid', '<script>alert(1)</script>', 'texto\u202eoculto', 'texto\u0000nulo']) {
     assert.throws(() => validateReport({ ...example, description: `EJEMPLO FICTICIO: ${detail}. Se observa falta de agua.` }));

@@ -8,13 +8,31 @@ let pending = false;
 let revision = 0;
 let controller = null;
 
+const reportFields = new Map([
+  ['category', 'el tipo de problema'], ['scope', 'el alcance'], ['provider', 'el prestador'],
+  ['locality', 'el distrito o la zona general'], ['description', 'la descripción'], ['privacy', 'la confirmación de privacidad'],
+]);
+
+function clearReportError() {
+  $('report-error').hidden = true;
+  $('report-error-detail').textContent = '';
+  $('report-error-link').setAttribute('href', '#category');
+  $('report-error-link').textContent = 'Volver a revisar el formulario';
+  for (const id of reportFields.keys()) {
+    const field = $(id);
+    field.removeAttribute('aria-invalid');
+    const descriptions = (field.getAttribute('aria-describedby') || '').split(/\s+/).filter(token => token && token !== 'report-error-detail');
+    if (descriptions.length) field.setAttribute('aria-describedby', descriptions.join(' '));
+    else field.removeAttribute('aria-describedby');
+  }
+}
+
 function invalidate() {
   revision += 1;
   controller?.abort();
   pending = false;
   report = null;
-  $('report-error').hidden = true;
-  $('report-error-detail').textContent = '';
+  clearReportError();
   $('draft').value = '';
   $('draft-section').hidden = true;
   $('reviewed').checked = false;
@@ -71,8 +89,17 @@ $('report-form').addEventListener('submit', event => {
     $('draft').focus({ preventScroll: true });
     updateAiButton();
   } catch (error) {
+    clearReportError();
     $('message').textContent = '';
     $('report-error-detail').textContent = error.message;
+    if (reportFields.has(error.field)) {
+      const field = $(error.field);
+      field.setAttribute('aria-invalid', 'true');
+      const descriptions = (field.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean);
+      field.setAttribute('aria-describedby', [...descriptions, 'report-error-detail'].join(' '));
+      $('report-error-link').setAttribute('href', `#${error.field}`);
+      $('report-error-link').textContent = `Revisar ${reportFields.get(error.field)}`;
+    }
     $('report-error').hidden = false;
     $('report-error').focus();
   }

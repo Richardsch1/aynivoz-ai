@@ -22,6 +22,7 @@ async function client(t) {
       this.disabled = false;
       this.children = [];
       this.listeners = new Map();
+      this.attributes = new Map();
     }
     addEventListener(type, listener) {
       if (!this.listeners.has(type)) this.listeners.set(type, []);
@@ -33,6 +34,11 @@ async function client(t) {
     }
     append(...children) { this.children.push(...children); }
     replaceChildren(...children) { this.children = children; }
+    getAttribute(name) { return this.attributes.get(name) ?? null; }
+    setAttribute(name, value) { this.attributes.set(name, String(value)); }
+    removeAttribute(name) { this.attributes.delete(name); }
+    get href() { return this.getAttribute('href') ?? ''; }
+    set href(value) { this.setAttribute('href', value); }
     focus() { if (!this.hidden) document.activeElement = this; }
     scrollIntoView() {}
     reset() {
@@ -43,15 +49,19 @@ async function client(t) {
   }
   for (const id of [
     'report-form', 'category', 'scope', 'provider', 'locality', 'description', 'privacy',
-    'report-error', 'report-error-detail', 'message', 'draft', 'draft-section', 'reviewed',
+    'report-error', 'report-error-detail', 'report-error-link', 'message', 'draft', 'draft-section', 'reviewed',
     'download', 'ai-consent', 'ai-result', 'ai-status', 'ask-ai', 'demo', 'erase',
-    'channel-list', 'catalog-status',
+    'channel-list', 'catalog-status', 'extra-help',
   ]) elements.set(id, new Element(id));
   elements.get('report-error').hidden = true;
   elements.get('draft-section').hidden = true;
   elements.get('download').disabled = true;
   elements.get('ask-ai').disabled = true;
   elements.get('provider').value = 'desconocido';
+  elements.get('locality').setAttribute('aria-describedby', 'locality-help');
+  elements.get('description').setAttribute('aria-describedby', 'description-help');
+  elements.get('report-error-link').href = '#category';
+  elements.get('report-error-link').textContent = 'Volver a revisar el formulario';
   const fields = ['category', 'scope', 'provider', 'locality', 'description'];
   class FormData {
     constructor(form) { assert.equal(form, elements.get('report-form')); }
@@ -95,6 +105,10 @@ test('error del reporte recibe foco y conserva los campos sin crear un borrador'
   assert.equal(document.activeElement, $('report-error'));
   assert.equal($('report-error').hidden, false);
   assert.match($('report-error-detail').textContent, /Elimina.*correos/);
+  assert.equal($('description').getAttribute('aria-invalid'), 'true');
+  assert.equal($('description').getAttribute('aria-describedby'), 'description-help report-error-detail');
+  assert.equal($('report-error-link').href, '#description');
+  assert.match($('report-error-link').textContent, /^Revisar .*descripción/iu);
   assert.equal($('message').textContent, '');
   assert.equal($('description').value, description);
   assert.equal($('locality').value, 'Distrito ficticio');
@@ -117,6 +131,13 @@ test('editar, cargar ejemplo y borrar descartan el resumen de error anterior', a
     await $(control).emit(event);
     assert.equal($('report-error').hidden, true, `${control}: oculta el error anterior`);
     assert.equal($('report-error-detail').textContent, '', `${control}: descarta su texto`);
+    for (const field of ['category', 'scope', 'provider', 'privacy', 'locality', 'description']) {
+      assert.equal($(field).getAttribute('aria-invalid'), null, `${control}: elimina la marca de ${field}`);
+    }
+    assert.equal($('locality').getAttribute('aria-describedby'), 'locality-help');
+    assert.equal($('description').getAttribute('aria-describedby'), 'description-help');
+    assert.equal($('report-error-link').href, '#category');
+    assert.equal($('report-error-link').textContent, 'Volver a revisar el formulario');
   }
   assert.equal($('description').value, '');
   assert.equal($('privacy').checked, false);
@@ -124,6 +145,8 @@ test('editar, cargar ejemplo y borrar descartan el resumen de error anterior', a
 
 test('registro válido enfoca el borrador y exige revisarlo de nuevo antes de descargar', async t => {
   const { $, document, fill } = await client(t);
+  fill('EJEMPLO FICTICIO. Consultar persona@example.invalid por la falta de agua.');
+  await $('report-form').emit('submit');
   fill();
   await $('report-form').emit('submit');
   $('reviewed').checked = true;
@@ -138,5 +161,50 @@ test('registro válido enfoca el borrador y exige revisarlo de nuevo antes de de
   assert.equal($('download').disabled, true);
   assert.equal($('report-error').hidden, true);
   assert.equal($('report-error-detail').textContent, '');
+  assert.equal($('description').getAttribute('aria-invalid'), null);
+  assert.equal($('description').getAttribute('aria-describedby'), 'description-help');
+  assert.equal($('report-error-link').href, '#category');
   assert.match($('message').textContent, /Reporte registrado en esta pestaña/);
+});
+
+test('cambiar el campo con error conserva ayudas, elimina la marca anterior y evita asociaciones duplicadas', async t => {
+  const { $, fill } = await client(t);
+  $('description').setAttribute('aria-describedby', 'description-help extra-help');
+  fill('EJEMPLO FICTICIO. Consultar persona@example.invalid por la falta de agua.');
+  await $('report-form').emit('submit');
+  await $('report-form').emit('submit');
+  assert.equal($('description').getAttribute('aria-describedby'), 'description-help extra-help report-error-detail');
+  assert.equal($('description').getAttribute('aria-invalid'), 'true');
+  // Simulate another submission after values changed without an input event.
+  fill();
+  $('locality').value = 'Zona persona@example.invalid';
+  await $('report-form').emit('submit');
+  assert.equal($('locality').getAttribute('aria-invalid'), 'true');
+  assert.equal($('locality').getAttribute('aria-describedby'), 'locality-help report-error-detail');
+  assert.equal($('description').getAttribute('aria-invalid'), null);
+  assert.equal($('description').getAttribute('aria-describedby'), 'description-help extra-help');
+  assert.equal($('report-error-link').href, '#locality');
+  assert.match($('report-error-link').textContent, /^Revisar .*zona/iu);
+  await $('report-form').emit('input');
+  assert.equal($('locality').getAttribute('aria-invalid'), null);
+  assert.equal($('locality').getAttribute('aria-describedby'), 'locality-help');
+  assert.equal($('description').getAttribute('aria-describedby'), 'description-help extra-help');
+});
+
+test('error sin un campo identificable conserva el resumen y el enlace general', async t => {
+  const { $, document, fill } = await client(t);
+  fill('0000: EJEMPLO FICTICIO. Se observa una interrupción de agua.');
+  $('locality').value = 'Zona ficticia 000';
+  await $('report-form').emit('submit');
+  assert.equal(document.activeElement, $('report-error'));
+  assert.equal($('report-error').hidden, false);
+  assert.match($('report-error-detail').textContent, /Elimina números de identificación/);
+  assert.equal($('report-error-link').href, '#category');
+  assert.equal($('report-error-link').textContent, 'Volver a revisar el formulario');
+  for (const field of ['category', 'scope', 'provider', 'privacy', 'locality', 'description']) {
+    assert.equal($(field).getAttribute('aria-invalid'), null);
+  }
+  assert.equal($('locality').getAttribute('aria-describedby'), 'locality-help');
+  assert.equal($('description').getAttribute('aria-describedby'), 'description-help');
+  assert.equal($('draft-section').hidden, true);
 });
