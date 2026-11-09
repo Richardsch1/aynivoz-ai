@@ -1,4 +1,25 @@
+import { Buffer } from 'node:buffer';
 import { CATEGORIES, SCOPES, ValidationError, containsSensitivePattern } from '../public/domain.js';
+
+const MAX_RESPONSE_BYTES = 32 * 1024;
+
+async function readProviderJson(response) {
+  if (!response.body) throw new Error('AI_UNSAFE_OUTPUT');
+  if (Number(response.headers.get('content-length')) > MAX_RESPONSE_BYTES) {
+    await response.body.cancel();
+    throw new Error('AI_UNSAFE_OUTPUT');
+  }
+  let bytes = 0;
+  const chunks = [];
+  for await (const chunk of response.body) {
+    bytes += chunk.byteLength;
+    // Exiting this loop early cancels the body. Never accumulate an oversized chunk.
+    if (bytes > MAX_RESPONSE_BYTES) throw new Error('AI_UNSAFE_OUTPUT');
+    chunks.push(chunk);
+  }
+  // Decode once, preserving split UTF-8 characters and Response.json()'s BOM handling.
+  return JSON.parse(new TextDecoder().decode(Buffer.concat(chunks, bytes)));
+}
 
 export function validateAiRequest(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw) || Object.keys(raw).sort().join(',') !== 'category,consent,scope') throw new ValidationError('Solo se aceptan tipo, alcance y consentimiento.');
@@ -24,7 +45,7 @@ export async function suggestSentence(input, { env = process.env, fetchImpl = fe
   });
   // Never propagate provider errors: they may contain request data or credentials.
   if (!response.ok) throw new Error('AI_UNAVAILABLE');
-  const payload = await response.json();
+  const payload = await readProviderJson(response);
   const blocks = payload?.content;
   if (payload?.stop_reason !== 'end_turn' || !Array.isArray(blocks) || blocks.length === 0 ||
       blocks.some(block => block?.type !== 'text' || typeof block.text !== 'string')) throw new Error('AI_UNSAFE_OUTPUT');

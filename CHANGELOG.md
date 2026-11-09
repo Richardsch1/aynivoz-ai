@@ -1,5 +1,9 @@
 # Historial
 
+## 2026-11-09
+
+La ayuda opcional limita a 32 KiB el cuerpo de respuesta del proveedor antes de analizar su JSON. Rechaza tamaños excesivos anunciados o detectados durante la lectura y cancela el cuerpo, contando bytes incluso sin una cabecera fiable. Mantiene el error genérico, el borrador local y la ausencia de reintentos automáticos.
+
 ## 2026-11-07
 
 El resumen de errores del reporte enlaza al campo identificado y lo asocia al mensaje sin retirar sus ayudas existentes. Las marcas se limpian al editar, cambiar de error, cargar el ejemplo, borrar o registrar correctamente. Los patrones sensibles repartidos entre campos siguen bloqueados y conservan el aviso general.

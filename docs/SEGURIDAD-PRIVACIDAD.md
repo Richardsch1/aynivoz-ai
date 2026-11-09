@@ -16,6 +16,8 @@ Las sugerencias de IA con controles bidireccionales U+202A–U+202E, U+2066–U+
 
 Antes de unir el contenido del proveedor, el adaptador exige `stop_reason: "end_turn"` y una lista no vacía de bloques `text` cuyo contenido sea una cadena. Descarta respuestas truncadas, motivos de finalización ausentes o no admitidos, otros tipos de bloque y valores no textuales; no procesa herramientas ni bloques de razonamiento. Un rechazo mantiene el error HTTP 502 genérico y no provoca una llamada de continuación ni un reintento automático. La [documentación de motivos de finalización de Anthropic](https://platform.claude.com/docs/en/build-with-claude/handling-stop-reasons) distingue el fin normal de los límites de generación; finalizar normalmente no certifica la exactitud de la frase.
 
+El adaptador admite un cuerpo de respuesta de hasta 32 KiB antes de decodificar y analizar el JSON. Rechaza y cancela el cuerpo si `Content-Length` anuncia más; también cuenta los bytes realmente leídos y cancela al superar el límite, aunque la cabecera falte o declare menos. El límite incluye metadatos y texto, y se aplica además de `max_tokens`. No garantiza un techo de memoria total del proceso ni de bytes transferidos: el runtime y la red pueden haber almacenado fragmentos adicionales. La sugerencia rechazada no se devuelve y el borrador local permanece disponible.
+
 ## Amenazas y controles
 
 | Riesgo | Control y límite |
@@ -27,7 +29,7 @@ Antes de unir el contenido del proveedor, el adaptador exige `stop_reason: "end_
 | Filtración mediante errores | No se devuelven errores internos ni cuerpos del proveedor. No se registran reportes, claves o prompts. No se incluyen herramientas de analítica. |
 | SSRF | Destino de Anthropic fijo y redirecciones rechazadas; no se reciben URLs del cliente. |
 | Peticiones desde otra web | Escucha en loopback, validación de Host, Origin exacto y Sec-Fetch-Site; no CORS; solo JSON. |
-| Costos o saturación | Una petición simultánea y seis intentos por minuto por instancia, cuerpo máximo 4 KiB, salida de 200 tokens y espera al proveedor de 12 s. El límite en memoria se reinicia al reiniciar el proceso. |
+| Costos o saturación | Una petición simultánea y seis intentos por minuto por instancia, solicitud máxima de 4 KiB, respuesta del proveedor limitada a 32 KiB para su análisis, salida solicitada de 200 tokens y espera al proveedor de 12 s. El contador de intentos se reinicia al reiniciar el proceso. |
 | Información vencida | Fecha visible y alerta tras 90 días. No se comprueba disponibilidad en tiempo real. |
 | Confianza excesiva | Plantilla marcada como borrador, hechos no verificados, confirmación de revisión y sin envío automático. |
 

@@ -2,6 +2,22 @@
 
 Este registro describe cambios y comprobaciones realmente realizados. No representa uso comunitario ni resultados de impacto.
 
+## 2026-11-09 · Lectura acotada de respuestas del proveedor
+
+**Problema reproducido:** una respuesta JSON simulada de 65.706 bytes con una frase válida y metadatos extensos se aceptaba, con o sin `Content-Length`. El límite solicitado de 200 tokens no limitaba el tamaño del cuerpo HTTP analizado. No se observó un incidente con usuarios ni se hicieron llamadas reales a Claude.
+
+**Cambio:** el adaptador admite hasta 32 KiB de cuerpo antes de decodificar y analizar el JSON. Si la cabecera anuncia más, cancela sin leer el cuerpo; también cuenta los bytes realmente leídos y cancela al superar el límite aunque la cabecera falte o declare menos. No acumula el fragmento que excede el límite. Conserva la decodificación UTF-8, incluido un carácter dividido entre fragmentos y un BOM inicial, el plazo de 12 segundos y los filtros de la sugerencia. La API mantiene el error HTTP 502 genérico, sin contenido rechazado ni reintentos automáticos; el borrador local y la revisión humana permanecen disponibles.
+
+Los 32 KiB son una decisión conservadora del MVP para una frase breve y sus metadatos, no un límite publicado por Anthropic. Acotan lo que la aplicación acumula para el análisis, no la memoria total del proceso ni el tráfico: el runtime y la red pueden haber almacenado fragmentos adicionales.
+
+**Verificación local:** Windows, Node v24.12.0. Las tres nuevas regresiones de tamaño fallaron con el adaptador anterior: se aceptaban cuerpos excesivos y la API devolvía 200. La prueba del tamaño exacto de 32 KiB aceptó el caso válido. La revisión detectó además una diferencia al decodificar el BOM inicial, se reprodujo con una prueba y se corrigió antes de publicar. La suite completa aprobó 45 de 45 pruebas. Se comprobó cancelación antes de leer por cabecera, cancelación al cruzar el límite sin cabecera o con una menor, límites en bytes UTF-8, recuperación HTTP 502 → 200 sin reintento y página local disponible. `npm run check` y `git diff --check` terminaron sin errores; `npm audit --omit=dev --audit-level=high` no reportó vulnerabilidades. Todas las respuestas del proveedor fueron simuladas, sin claves reales ni datos de ciudadanos. No se hizo una nueva prueba de navegador en esta revisión del servidor.
+
+El resultado remoto de este cambio debe consultarse en [GitHub Actions](https://github.com/Richardsch1/aynivoz-ai/actions); las comprobaciones locales no confirman por sí solas CI en Node 22 y 24.
+
+**Referencia técnica:** [iteración asíncrona de Web Streams en Node.js 22](https://nodejs.org/docs/latest-v22.x/api/webstreams.html#async-iteration), consultada el 9 de noviembre de 2026. La salida anticipada del bucle cancela la lectura por defecto; las pruebas comprueban la cancelación sobre streams simulados que aún están abiertos.
+
+**Próximos pasos:** comprobar errores por campo en un navegador real y con lectores de pantalla, y continuar la evaluación en otros navegadores. La integración con una cuenta real de Anthropic sigue pendiente y requiere consentimiento y presupuesto propios. Esta revisión no actualizó las fuentes ni las fechas del catálogo y no atribuye uso ni impacto comunitario validado.
+
 ## 2026-11-07 · Errores asociados al campo del reporte
 
 **Problema confirmado en código y pruebas:** el enlace del resumen siempre llevaba al selector inicial, incluso cuando la validación detectaba un error en la descripción o la zona. Los campos no se asociaban con el mensaje de error.

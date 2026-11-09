@@ -17,6 +17,28 @@ async function instance(t, options = {}) {
   return { url, post };
 }
 
+const providerByteLimit = 32 * 1024;
+function providerJsonBytes(size) {
+  const payload = { stop_reason: 'end_turn', content: [{ type: 'text', text: sentence }], padding: '' };
+  const remaining = size - Buffer.byteLength(JSON.stringify(payload));
+  payload.padding = 'á'.repeat(Math.floor(remaining / 2)) + 'x'.repeat(remaining % 2);
+  const bytes = new TextEncoder().encode(JSON.stringify(payload));
+  assert.equal(bytes.byteLength, size);
+  return bytes;
+}
+function providerStream(chunks, headers = {}) {
+  const state = { pulls: 0, cancelled: false };
+  const body = new ReadableStream({
+    pull(controller) {
+      const chunk = chunks[state.pulls++];
+      if (chunk) controller.enqueue(chunk);
+      else controller.close();
+    },
+    cancel() { state.cancelled = true; },
+  }, { highWaterMark: 0 });
+  return { response: new Response(body, { headers }), state };
+}
+
 test('sirve la aplicación con cabeceras restrictivas', async t => {
   const { url } = await instance(t);
   const response = await fetch(url);
@@ -129,6 +151,60 @@ test('API descarta una respuesta truncada sin reintentar y admite la siguiente v
   const { url, post } = await instance(t, { env, fetchImpl: async () => {
     calls += 1;
     return Response.json({ stop_reason: calls === 1 ? 'max_tokens' : 'end_turn', content: [{ type: 'text', text: calls === 1 ? partial : sentence }] });
+  } });
+  const rejected = await post(input);
+  assert.equal(rejected.status, 502);
+  assert.deepEqual(await rejected.json(), {
+    error: 'No se pudo obtener una sugerencia segura. El borrador local sigue disponible.',
+  });
+  assert.equal(calls, 1);
+  const localPage = await fetch(url);
+  assert.equal(localPage.status, 200);
+  assert.match(await localPage.text(), /id="report-form"/);
+  const recovered = await post(input);
+  assert.equal(recovered.status, 200);
+  assert.deepEqual(await recovered.json(), { sentence, reviewRequired: true });
+  assert.equal(calls, 2);
+});
+test('limita bytes del proveedor por cabecera o lectura y cancela antes del resto', async () => {
+  const oversized = providerJsonBytes(providerByteLimit + 1);
+  const chunks = [oversized.slice(0, providerByteLimit), oversized.slice(providerByteLimit), new Uint8Array([32])];
+  for (const [headers, expectedPulls] of [
+    [{ 'content-length': String(providerByteLimit + 1) }, 0],
+    [{}, 2],
+    [{ 'content-length': '10' }, 2],
+  ]) {
+    const { response, state } = providerStream(chunks, headers);
+    await assert.rejects(suggestSentence(input, { env, fetchImpl: async () => response }), { message: 'AI_UNSAFE_OUTPUT' });
+    assert.equal(state.pulls, expectedPulls);
+    assert.equal(state.cancelled, true);
+  }
+});
+test('conserva la aceptación de JSON con BOM UTF-8 inicial', async () => {
+  const bytes = Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), providerJsonBytes(512)]);
+  const { response } = providerStream([bytes.subarray(0, 1), bytes.subarray(1)]);
+  assert.equal(await suggestSentence(input, { env, fetchImpl: async () => response }), sentence);
+});
+test('acepta exactamente treinta y dos KiB con UTF-8 partido y rechaza un byte adicional', async () => {
+  const exact = providerJsonBytes(providerByteLimit);
+  const split = exact.indexOf(0xc3) + 1;
+  assert.ok(split > 0);
+  const valid = providerStream([exact.slice(0, split), exact.slice(split)]);
+  assert.equal(await suggestSentence(input, { env, fetchImpl: async () => valid.response }), sentence);
+  const oversized = new Uint8Array(providerByteLimit + 1);
+  oversized.set(exact);
+  oversized[providerByteLimit] = 32;
+  assert.ok(new TextDecoder().decode(oversized).length < providerByteLimit);
+  const invalid = providerStream([oversized.slice(0, split), oversized.slice(split)]);
+  await assert.rejects(suggestSentence(input, { env, fetchImpl: async () => invalid.response }), { message: 'AI_UNSAFE_OUTPUT' });
+  assert.equal(invalid.state.cancelled, true);
+});
+test('API descarta respuesta excesiva sin reintento y conserva recuperación y página local', async t => {
+  let calls = 0;
+  const oversized = providerJsonBytes(providerByteLimit + 1);
+  const { url, post } = await instance(t, { env, fetchImpl: async () => {
+    calls += 1;
+    return calls === 1 ? providerStream([oversized]).response : Response.json({ stop_reason: 'end_turn', content: [{ type: 'text', text: sentence }] });
   } });
   const rejected = await post(input);
   assert.equal(rejected.status, 502);

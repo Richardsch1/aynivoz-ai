@@ -65,6 +65,8 @@ El destino HTTPS de la API es fijo; hay tiempo máximo de espera, una petición 
 
 El adaptador acepta únicamente respuestas finalizadas normalmente (`stop_reason: "end_turn"`) con bloques de texto. No procesa herramientas ni bloques de razonamiento. Si la respuesta queda cortada o tiene otro formato, la sugerencia se descarta y puedes continuar con el borrador local; no se hacen reintentos automáticos ni llamadas para completar la respuesta.
 
+El cuerpo de respuesta del proveedor se limita a **32 KiB antes de analizar el JSON**. Si la cabecera anuncia un tamaño mayor o la lectura supera ese límite, se cancela el cuerpo y se descarta la sugerencia. Se cuentan bytes, también cuando falta la cabecera o declara menos. Esto acota lo que la aplicación acumula para analizar; no fija el consumo total de memoria o de red del proceso.
+
 Referencia técnica: [Messages API de Anthropic](https://platform.claude.com/docs/en/api/overview). El adaptador usa la versión estable `2023-06-01`, todavía documentada; el modelo se configura en servidor.
 
 ## Fuentes y cobertura
