@@ -69,9 +69,10 @@ async function client(t) {
       for (const field of fields) yield [field, elements.get(field).value];
     }
   }
+  const window = new Element('window');
   const replacements = {
     document,
-    window: { addEventListener() {} },
+    window,
     FormData,
     fetch: async url => {
       assert.equal(url, '/api/config');
@@ -94,7 +95,7 @@ async function client(t) {
     for (const [field, value] of Object.entries({ category: 'sin-agua', scope: 'comunidad', provider: 'desconocido', locality: 'Distrito ficticio', description })) $(field).value = value;
     $('privacy').checked = true;
   };
-  return { $, document, fill };
+  return { $, document, window, fill };
 }
 
 test('error del reporte recibe foco y conserva los campos sin crear un borrador', async t => {
@@ -207,4 +208,49 @@ test('error sin un campo identificable conserva el resumen y el enlace general',
   assert.equal($('locality').getAttribute('aria-describedby'), 'locality-help');
   assert.equal($('description').getAttribute('aria-describedby'), 'description-help');
   assert.equal($('draft-section').hidden, true);
+});
+
+test('salir de la página limpia el reporte y restaura canales sin prestador confirmado', async t => {
+  const { $, window, fill } = await client(t);
+  const channelNames = () => $('channel-list').children.flatMap(channel =>
+    channel.children.filter(child => child.id === 'h3').map(child => child.textContent));
+  fill();
+  $('provider').value = 'sedapal';
+  await $('report-form').emit('input');
+  await $('report-form').emit('submit');
+  $('reviewed').checked = true;
+  await $('reviewed').emit('change');
+  $('ai-consent').checked = true;
+  await $('ai-consent').emit('change');
+  assert.equal($('download').disabled, false);
+  assert.match($('message').textContent, /Reporte registrado/);
+  assert.equal(channelNames().length, 4);
+  assert.ok(channelNames().some(name => name.includes('Sedapal')));
+
+  // Repeated lifecycle events must leave the same neutral state.
+  for (let i = 0; i < 2; i += 1) {
+    await window.emit('pagehide');
+    for (const field of ['category', 'scope', 'locality', 'description']) assert.equal($(field).value, '');
+    assert.equal($('provider').value, 'desconocido');
+    assert.equal($('privacy').checked, false);
+    assert.equal($('draft').value, '');
+    assert.equal($('draft-section').hidden, true);
+    assert.equal($('reviewed').checked, false);
+    assert.equal($('download').disabled, true);
+    assert.equal($('ai-consent').checked, false);
+    assert.equal($('ai-result').textContent, '');
+    assert.equal($('ask-ai').disabled, true);
+    assert.equal($('report-error').hidden, true);
+    assert.equal($('report-error-detail').textContent, '');
+    assert.equal(channelNames().length, 3);
+    assert.ok(channelNames().every(name => !name.includes('Sedapal')));
+    assert.equal($('message').textContent, '');
+  }
+
+  fill();
+  await $('report-form').emit('submit');
+  assert.equal($('draft-section').hidden, false);
+  assert.match($('draft').value, /Prestador competente: confirmar/);
+  assert.equal($('reviewed').checked, false);
+  assert.equal($('download').disabled, true);
 });

@@ -4,6 +4,8 @@
 
 El reporte contiene tipo, alcance, zona general, prestador declarado y descripción. Solo vive en memoria del navegador. No usa almacenamiento web persistente. Borrar todo, recargar o abandonar la página descarta ese estado. El evento de salida limpia también el estado para evitar recuperarlo mediante la caché de navegación.
 
+Al limpiar por salida, el catálogo se reconstruye después de restablecer el prestador a «por confirmar» y se retira el mensaje del reporte anterior. Sedapal vuelve a requerir una selección expresa; no se conserva una atribución de cobertura del reporte descartado. Esta limpieza no contacta a las entidades ni modifica las fechas de verificación del catálogo.
+
 El borrador descargado sí persiste en el dispositivo y puede contener lo que la persona haya escrito. Debe revisarse y custodiarse. No hay borrado remoto de descargas. El sistema operativo, extensiones, capturas y otras aplicaciones pueden retener contenido.
 
 No se piden datos de identidad ni se aceptan adjuntos o geolocalización. El detector de patrones no detecta todos los nombres, domicilios o información sensible. El consentimiento no vuelve segura una descripción que incluya datos de terceros.

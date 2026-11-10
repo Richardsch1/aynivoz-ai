@@ -2,6 +2,24 @@
 
 Este registro describe cambios y comprobaciones realmente realizados. No representa uso comunitario ni resultados de impacto.
 
+## 2026-11-10 · Canales coherentes tras limpiar por navegación
+
+**Problema reproducido en DOM simulado:** seleccionar Sedapal, registrar un reporte ficticio y ejecutar el manejador de `pagehide` restablecía el formulario a prestador desconocido, pero dejaba cuatro canales, incluido Aquafono, y el mensaje de reporte registrado. Ese estado podía quedar disponible si el navegador reutilizaba el documento al volver. No se observó un caso con ciudadanos.
+
+**Cambio:** después de descartar el reporte y restablecer el formulario, la limpieza de salida borra el mensaje anterior y reconstruye el catálogo con la selección neutral. Sedapal vuelve a requerir confirmación expresa. Se conservan la cancelación de solicitudes pendientes, el borrado del borrador, la retirada del consentimiento opcional y la revisión obligatoria de cualquier nuevo borrador. Reconstruir el catálogo no hace solicitudes de red ni cambia sus fuentes o fechas.
+
+**Verificación de regresión:** Windows, Node v24.12.0. Antes de corregir el cliente, sus cinco pruebas anteriores pasaron y la nueva falló al encontrar cuatro canales en lugar de tres. Con la corrección, la suite completa aprobó 46 de 46 pruebas. La nueva prueba usa eventos y un DOM mínimos simulados, comprueba dos limpiezas sucesivas y permite registrar después un reporte con prestador por confirmar. `npm run check` y `git diff --check` terminaron sin errores; `npm audit --omit=dev --audit-level=high` no reportó vulnerabilidades. No se utilizaron datos reales de ciudadanos ni se llamó a Anthropic con una clave real.
+
+El resultado remoto de este cambio debe consultarse en [GitHub Actions](https://github.com/Richardsch1/aynivoz-ai/actions); las comprobaciones locales no confirman por sí solas CI en Node 22 y 24.
+
+**Recorrido en navegador integrado:** con IA desactivada y el ejemplo ficticio, se seleccionó Sedapal, se generó y revisó un borrador y se navegó a una página vacía y de vuelta. Después de cargar la corrección, se comprobaron campos vacíos, prestador desconocido, borrador vacío y oculto, descarga bloqueada, mensaje vacío y solo tres canales sin Sedapal. Se guardó una captura local fuera del repositorio. El recorrido anterior a la corrección también regresó al estado neutral: no se confirmó que el navegador reutilizara la caché de navegación ni se reprodujo allí el fallo anterior. La reproducción y su corrección quedan acreditadas por la prueba del manejador, sin afirmar cobertura completa de BFCache o de otros navegadores.
+
+**Referencia técnica:** [eventos de transición de página del estándar HTML](https://html.spec.whatwg.org/multipage/nav-history-apis.html#the-pagetransitionevent-interface), consultada el 10 de noviembre de 2026. La posibilidad de reutilización del documento depende del navegador; la limpieza no se condiciona a que se reutilice.
+
+**Contraste de fuentes:** se revisaron las cuatro fuentes primarias del [catálogo](FUENTES.md) mediante su texto oficial indexado, sin encontrar discrepancias en números o propósitos. El acceso directo devolvió HTTP 418 o agotó el tiempo de espera. Este contraste documental no confirma atención efectiva ni disponibilidad en tiempo real; se mantienen los contactos y las fechas del catálogo sin renovar su verificación global.
+
+**Próximos pasos:** comprobar la restauración efectiva desde BFCache en navegadores que la permitan y continuar las pruebas de accesibilidad con lectores de pantalla y otros navegadores. Siguen pendientes la validación comunitaria y la prueba opcional con una cuenta real de Anthropic, bajo consentimiento y presupuesto propios. No se atribuye adopción ni impacto validado.
+
 ## 2026-11-09 · Lectura acotada de respuestas del proveedor
 
 **Problema reproducido:** una respuesta JSON simulada de 65.706 bytes con una frase válida y metadatos extensos se aceptaba, con o sin `Content-Length`. El límite solicitado de 200 tokens no limitaba el tamaño del cuerpo HTTP analizado. No se observó un incidente con usuarios ni se hicieron llamadas reales a Claude.

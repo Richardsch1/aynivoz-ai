@@ -1,5 +1,9 @@
 # Historial
 
+## 2026-11-10
+
+La limpieza al salir de la página reconstruye los canales para el prestador por confirmar y borra el mensaje del reporte anterior. Evita conservar el canal de Sedapal después de retirar su selección. Mantiene el borrado del reporte y el requisito de revisar un nuevo borrador antes de descargarlo.
+
 ## 2026-11-09
 
 La ayuda opcional limita a 32 KiB el cuerpo de respuesta del proveedor antes de analizar su JSON. Rechaza tamaños excesivos anunciados o detectados durante la lectura y cancela el cuerpo, contando bytes incluso sin una cabecera fiable. Mantiene el error genérico, el borrador local y la ausencia de reintentos automáticos.

@@ -162,7 +162,12 @@ $('ask-ai').addEventListener('click', async () => {
   }
 });
 // Clear on navigation, including back/forward cache; no persistence APIs are used.
-window.addEventListener('pagehide', () => { invalidate(); $('report-form').reset(); });
+window.addEventListener('pagehide', () => {
+  invalidate();
+  $('report-form').reset();
+  $('message').textContent = '';
+  renderChannels();
+});
 renderChannels();
 fetch('/api/config').then(response => response.json()).then(config => {
   aiAvailable = config.aiAvailable === true;
