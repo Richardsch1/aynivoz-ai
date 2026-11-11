@@ -2,6 +2,22 @@
 
 Este registro describe cambios y comprobaciones realmente realizados. No representa uso comunitario ni resultados de impacto.
 
+## 2026-11-11 · Cancelación del cuerpo de errores del proveedor
+
+**Problema reproducido:** una respuesta HTTP 429 simulada con un cuerpo abierto se rechazaba con `AI_UNAVAILABLE`, pero el adaptador no leía ni cancelaba ese cuerpo. Se comprobó la ausencia de cancelación; no se reprodujo agotamiento real de conexiones ni se midieron memoria o rendimiento. El plazo máximo existente de 12 segundos ya acota la petición real.
+
+**Cambio:** ante un estado HTTP de error, el adaptador intenta cancelar el cuerpo antes de devolver su error interno genérico, sin leerlo ni analizarlo. Un cuerpo ausente o un fallo al cancelar no exponen detalles del proveedor o de limpieza. La API mantiene HTTP 502 genérico, sin reintentos, y libera su contador de concurrencia para la petición siguiente. No cambia el tratamiento de respuestas válidas, los datos mínimos enviados ni el borrador local.
+
+**Verificación local:** Windows, Node v24.12.0. Los tres grupos de regresión fallaron con el código anterior porque no había cancelación. Con el cambio, la suite completa aprobó 48 de 48 pruebas. Se comprobaron HTTP 429 y 503 con cancelación sin lectura, cuerpo ausente, cancelación que rechaza con un detalle ficticio privado y recuperación API 502 → 200 sin reintentos, con página local disponible y revisión humana requerida. `npm run check` y `git diff --check` terminaron sin errores; `npm audit --omit=dev --audit-level=high` no reportó vulnerabilidades. Las respuestas del proveedor fueron simuladas, sin claves reales ni datos de ciudadanos. No se hizo una nueva prueba de navegador en esta revisión del servidor.
+
+El resultado remoto de este cambio debe consultarse en [GitHub Actions](https://github.com/Richardsch1/aynivoz-ai/actions); las comprobaciones locales no confirman por sí solas CI en Node 22 y 24.
+
+**Referencia técnica:** [gestión de cuerpos y recolección de basura en Undici](https://undici.nodejs.org/#garbage-collection), consultada el 11 de noviembre de 2026. Recomienda consumir o cancelar los cuerpos de respuesta en lugar de depender del recolector para liberar recursos de conexión. La corrección añade esa cancelación explícita temprana; no demuestra una mejora cuantificada de recursos.
+
+**Contraste de fuentes:** se intentó abrir cada una de las cuatro fuentes primarias del [catálogo](FUENTES.md); todas devolvieron HTTP 418. El texto oficial indexado consultado no mostró discrepancias en números o propósitos. No se confirmó atención efectiva ni disponibilidad en tiempo real, y esos bloqueos no demuestran que los enlaces estén rotos. Se conservan contactos y fechas sin renovar la verificación global.
+
+**Próximos pasos:** continuar la comprobación de restauración efectiva desde la caché de navegación y de accesibilidad con lectores de pantalla y otros navegadores. La integración con una cuenta real de Anthropic sigue pendiente y requiere consentimiento y presupuesto propios. No se atribuye adopción ni impacto comunitario validado.
+
 ## 2026-11-10 · Canales coherentes tras limpiar por navegación
 
 **Problema reproducido en DOM simulado:** seleccionar Sedapal, registrar un reporte ficticio y ejecutar el manejador de `pagehide` restablecía el formulario a prestador desconocido, pero dejaba cuatro canales, incluido Aquafono, y el mensaje de reporte registrado. Ese estado podía quedar disponible si el navegador reutilizaba el documento al volver. No se observó un caso con ciudadanos.

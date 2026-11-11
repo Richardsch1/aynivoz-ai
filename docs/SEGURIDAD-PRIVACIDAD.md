@@ -20,6 +20,8 @@ Antes de unir el contenido del proveedor, el adaptador exige `stop_reason: "end_
 
 El adaptador admite un cuerpo de respuesta de hasta 32 KiB antes de decodificar y analizar el JSON. Rechaza y cancela el cuerpo si `Content-Length` anuncia más; también cuenta los bytes realmente leídos y cancela al superar el límite, aunque la cabecera falte o declare menos. El límite incluye metadatos y texto, y se aplica además de `max_tokens`. No garantiza un techo de memoria total del proceso ni de bytes transferidos: el runtime y la red pueden haber almacenado fragmentos adicionales. La sugerencia rechazada no se devuelve y el borrador local permanece disponible.
 
+Ante un estado HTTP de error del proveedor, el adaptador intenta cancelar su cuerpo sin leerlo ni analizarlo. Esto evita dejar su liberación únicamente a la recolección de basura o al plazo máximo de espera. Si no hay cuerpo o falla la cancelación, se mantiene el error genérico: no se devuelve el detalle de limpieza ni se hace otra llamada. No se afirma una reducción medida de conexiones o memoria.
+
 ## Amenazas y controles
 
 | Riesgo | Control y límite |

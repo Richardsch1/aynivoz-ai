@@ -1,5 +1,9 @@
 # Historial
 
+## 2026-11-11
+
+La ayuda opcional intenta cancelar el cuerpo de las respuestas HTTP de error del proveedor antes de rechazar la sugerencia, sin leer ese contenido. Si la cancelación falla o el cuerpo no existe, conserva el error genérico y no añade reintentos. El flujo local sigue disponible.
+
 ## 2026-11-10
 
 La limpieza al salir de la página reconstruye los canales para el prestador por confirmar y borra el mensaje del reporte anterior. Evita conservar el canal de Sedapal después de retirar su selección. Mantiene el borrado del reporte y el requisito de revisar un nuevo borrador antes de descargarlo.

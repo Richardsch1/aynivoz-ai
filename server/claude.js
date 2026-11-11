@@ -44,7 +44,10 @@ export async function suggestSentence(input, { env = process.env, fetchImpl = fe
     }),
   });
   // Never propagate provider errors: they may contain request data or credentials.
-  if (!response.ok) throw new Error('AI_UNAVAILABLE');
+  if (!response.ok) {
+    try { await response.body?.cancel(); } catch { /* Keep cleanup errors private too. */ }
+    throw new Error('AI_UNAVAILABLE');
+  }
   const payload = await readProviderJson(response);
   const blocks = payload?.content;
   if (payload?.stop_reason !== 'end_turn' || !Array.isArray(blocks) || blocks.length === 0 ||

@@ -26,7 +26,7 @@ function providerJsonBytes(size) {
   assert.equal(bytes.byteLength, size);
   return bytes;
 }
-function providerStream(chunks, headers = {}) {
+function providerStream(chunks, headers = {}, status = 200) {
   const state = { pulls: 0, cancelled: false };
   const body = new ReadableStream({
     pull(controller) {
@@ -36,7 +36,7 @@ function providerStream(chunks, headers = {}) {
     },
     cancel() { state.cancelled = true; },
   }, { highWaterMark: 0 });
-  return { response: new Response(body, { headers }), state };
+  return { response: new Response(body, { headers, status }), state };
 }
 
 test('sirve la aplicación con cabeceras restrictivas', async t => {
@@ -264,8 +264,52 @@ test('rechazo de salida insegura no filtra la frase ni bloquea la siguiente soli
   assert.deepEqual(await recovered.json(), { sentence, reviewRequired: true });
   assert.equal(calls, 2);
 });
-test('fallo HTTP del proveedor no se presenta como éxito', async () => {
-  await assert.rejects(suggestSentence(input, { env, fetchImpl: async () => new Response('provider error', { status: 429 }) }));
+test('fallo HTTP del proveedor cancela su cuerpo abierto sin leerlo', async () => {
+  for (const status of [429, 503]) {
+    const { response, state } = providerStream([new TextEncoder().encode('EJEMPLO FICTICIO. Error del proveedor.')], {}, status);
+    await assert.rejects(suggestSentence(input, { env, fetchImpl: async () => response }), { message: 'AI_UNAVAILABLE' });
+    assert.equal(state.pulls, 0);
+    assert.equal(state.cancelled, true, `HTTP ${status}: cancela el cuerpo rechazado`);
+  }
+});
+test('fallo HTTP sin cuerpo o con cancelación fallida conserva el error genérico', async () => {
+  await assert.rejects(suggestSentence(input, {
+    env, fetchImpl: async () => new Response(null, { status: 503 }),
+  }), { message: 'AI_UNAVAILABLE' });
+  let cancellations = 0;
+  let pulls = 0;
+  const body = new ReadableStream({
+    pull() { pulls += 1; throw new Error('No debe leerse el cuerpo de error.'); },
+    cancel() { cancellations += 1; throw new Error(env.ANTHROPIC_API_KEY); },
+  }, { highWaterMark: 0 });
+  await assert.rejects(suggestSentence(input, {
+    env, fetchImpl: async () => new Response(body, { status: 503 }),
+  }), { message: 'AI_UNAVAILABLE' });
+  assert.equal(cancellations, 1);
+  assert.equal(pulls, 0);
+});
+test('API cancela el error HTTP del proveedor y conserva recuperación sin reintento', async t => {
+  let calls = 0;
+  const { response, state } = providerStream([new TextEncoder().encode(`EJEMPLO FICTICIO. ${env.ANTHROPIC_API_KEY}`)], {}, 429);
+  const { url, post } = await instance(t, { env, fetchImpl: async () => {
+    calls += 1;
+    return calls === 1 ? response : Response.json({ stop_reason: 'end_turn', content: [{ type: 'text', text: sentence }] });
+  } });
+  const rejected = await post(input);
+  assert.equal(rejected.status, 502);
+  assert.deepEqual(await rejected.json(), {
+    error: 'No se pudo obtener una sugerencia segura. El borrador local sigue disponible.',
+  });
+  assert.equal(state.pulls, 0);
+  assert.equal(state.cancelled, true);
+  assert.equal(calls, 1);
+  const localPage = await fetch(url);
+  assert.equal(localPage.status, 200);
+  assert.match(await localPage.text(), /id="report-form"/);
+  const recovered = await post(input);
+  assert.equal(recovered.status, 200);
+  assert.deepEqual(await recovered.json(), { sentence, reviewRequired: true });
+  assert.equal(calls, 2);
 });
 test('límite global de costo y recuperación después de la ventana', async t => {
   let time = 100000;
