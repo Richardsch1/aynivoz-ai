@@ -24,7 +24,7 @@ export function text(value, label, min, max, field) {
 }
 
 export function containsSensitivePattern(value) {
-  return /[\w.+-]+@[\w.-]+\.[a-z]{2,}|(?:\d[\s().+-]*){7,}|\b(?:dni|pasaporte|ruc)\s*[:#]?\s*\d|https?:\/\/|www\./iu.test(value);
+  return /[\w.+-]+@[\w.-]+\.[a-z]{2,}|(?:\p{Decimal_Number}[\s().+-]*){7,}|\b(?:dni|pasaporte|ruc)\s*[:#]?\s*\p{Decimal_Number}|https?:\/\/|www\./iu.test(value);
 }
 
 export function validateReport(raw) {

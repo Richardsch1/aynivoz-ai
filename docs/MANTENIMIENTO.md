@@ -2,6 +2,26 @@
 
 Este registro describe cambios y comprobaciones realmente realizados. No representa uso comunitario ni resultados de impacto.
 
+## 2026-11-13 · Patrones numéricos con dígitos Unicode
+
+**Recuperación local:** la carpeta configurada no existía al iniciar. Tras buscar la copia en ubicaciones cercanas y confirmar el remoto, se creó una copia nueva desde el commit público `bd7acdf33435628bc293375ffc3b572458b9f0ad` en la ruta original. El acceso existente de Richardsch1 permitió una comprobación de publicación sin cambios. La recuperación contiene lo publicado en GitHub; no acredita recuperar archivos o cambios locales que no estuvieran publicados.
+
+**Problema reproducido:** secuencias ficticias de ceros de ancho completo o arábigo-índicos, y etiquetas de identificación seguidas de esos dígitos, pasaban la validación del reporte. Una frase simulada del proveedor con un único dígito decimal Unicode también se aceptaba. Las expresiones usaban `\d`, que solo reconocía los dígitos ASCII. No se observó una fuga de texto libre a Claude ni se usaron datos de ciudadanos.
+
+**Cambio:** el detector local y el filtro de salida del proveedor usan `\p{Decimal_Number}` con modo Unicode. Se conservan los separadores y umbrales del reporte, la detección conjunta entre campos y los errores sin reproducir valores. No se transforma el texto con NFKC. Una sugerencia rechazada mantiene el error HTTP 502 genérico y el borrador local, sin reintentos. La categoría decimal no cubre números escritos con letras, romanos, superíndices ni toda ofuscación; la revisión humana sigue siendo obligatoria.
+
+**Verificación local:** Windows, Node v24.12.0. Los tres grupos nuevos fallaron con el código anterior: reporte y sugerencia aceptados, y API con HTTP 200 en lugar de 502. Tras corregir los filtros, la suite completa aprobó 51 de 51 pruebas. Se comprobaron dígitos de ancho completo, arábigo-índicos, arábigo-índicos extendidos, devanagari y matemáticos astrales, mezclas con ASCII, separadores, etiquetas de identificación, atribución de campos sin eco y patrones repartidos. Se conservaron casos permitidos de texto español y secuencias cortas. Se verificó recuperación API 502 → 200 sin reintentos y página local disponible. `npm ci --ignore-scripts`, `npm run check`, `npm test`, `git diff --check` y `npm audit --omit=dev --audit-level=high` terminaron sin errores; la auditoría no reportó vulnerabilidades. Todos los dígitos de identificación utilizados son ceros ficticios y el proveedor fue simulado. No se usaron claves reales.
+
+**Comprobación en navegador integrado:** con IA desactivada, una descripción ficticia con la etiqueta DNI y un cero de ancho completo se rechazó. El resumen recibió foco, la descripción quedó asociada al error sin copiar el dato al mensaje y el borrador permaneció oculto con descarga bloqueada. Se guardó una captura local fuera del repositorio. Tras corregir el texto y usar una zona ficticia con dos ceros arábigo-índicos, el reporte permitido generó el borrador local, retiró el error y conservó la revisión pendiente y la descarga bloqueada. Este recorrido no constituye una evaluación con lectores de pantalla ni de todos los navegadores.
+
+El resultado remoto de este cambio debe consultarse en [GitHub Actions](https://github.com/Richardsch1/aynivoz-ai/actions); los resultados locales no confirman por sí solos CI en Node 22 y 24.
+
+**Referencias técnicas:** [escapes de caracteres y propiedades Unicode en ECMAScript](https://tc39.es/ecma262/2025/multipage/text-processing.html#sec-compiletocharset) y [alias de categorías Unicode](https://www.unicode.org/Public/UCD/latest/ucd/PropertyValueAliases.txt), consultados el 13 de noviembre de 2026. `Decimal_Number` corresponde a la categoría `Nd`; no se amplió el filtro a toda la categoría `Number`.
+
+**Contraste de fuentes:** las cuatro fuentes primarias del [catálogo](FUENTES.md) devolvieron HTTP 418 al abrirlas. Su texto oficial indexado consultado coincidió con los contactos y propósitos registrados. No se confirmó atención efectiva ni disponibilidad en tiempo real, ni se interpretaron esos bloqueos como enlaces rotos. Se mantienen los datos y fechas sin renovar la verificación global.
+
+**Próximos pasos:** comprobar esta validación en otros navegadores y continuar la evaluación de accesibilidad con lectores de pantalla y restauración desde la caché de navegación. Siguen pendientes la validación comunitaria y la prueba opcional con una cuenta real de Anthropic, bajo consentimiento y presupuesto propios. No se atribuye adopción ni impacto comunitario validado.
+
 ## 2026-11-11 · Cancelación del cuerpo de errores del proveedor
 
 **Problema reproducido:** una respuesta HTTP 429 simulada con un cuerpo abierto se rechazaba con `AI_UNAVAILABLE`, pero el adaptador no leía ni cancelaba ese cuerpo. Se comprobó la ausencia de cancelación; no se reprodujo agotamiento real de conexiones ni se midieron memoria o rendimiento. El plazo máximo existente de 12 segundos ya acota la petición real.

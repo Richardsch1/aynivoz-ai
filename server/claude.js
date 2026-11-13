@@ -53,6 +53,6 @@ export async function suggestSentence(input, { env = process.env, fetchImpl = fe
   if (payload?.stop_reason !== 'end_turn' || !Array.isArray(blocks) || blocks.length === 0 ||
       blocks.some(block => block?.type !== 'text' || typeof block.text !== 'string')) throw new Error('AI_UNSAFE_OUTPUT');
   const sentence = blocks.map(block => block.text).join(' ').trim();
-  if (typeof sentence !== 'string' || sentence.length < 15 || sentence.length > 650 || /[<>\d\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/u.test(sentence) || containsSensitivePattern(sentence)) throw new Error('AI_UNSAFE_OUTPUT');
+  if (typeof sentence !== 'string' || sentence.length < 15 || sentence.length > 650 || /[<>\p{Decimal_Number}\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/u.test(sentence) || containsSensitivePattern(sentence)) throw new Error('AI_UNSAFE_OUTPUT');
   return sentence;
 }

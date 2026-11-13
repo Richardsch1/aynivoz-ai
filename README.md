@@ -42,6 +42,8 @@ No incluye envío automático, seguimiento real de expedientes, mapas, reconocim
 
 No ingreses nombres, DNI, teléfonos, direcciones exactas, números de suministro, información de salud ni datos de otras personas. La detección de patrones bloquea algunos identificadores, correos, teléfonos y enlaces, pero **no garantiza detectar todos los datos personales**, nombres o ubicaciones precisas. La persona debe revisar el contenido.
 
+Los patrones numéricos también reconocen dígitos decimales Unicode, como los de ancho completo y los arábigo-índicos, incluso mezclados con los habituales. No cubren números escritos con letras ni todas las formas de ocultar datos. Las sugerencias de IA con dígitos decimales se descartan; sigue siendo necesario revisar lo que se escribe y descarga.
+
 La descripción y la zona no salen del navegador en el flujo del producto. No se usa almacenamiento persistente, telemetría, cookies, fuentes externas ni formularios remotos. El servidor no recibe reportes: solo entrega la interfaz y, si se habilita Claude, procesa dos opciones categóricas. El navegador, sistema operativo, extensiones y archivos descargados quedan fuera de esa garantía.
 
 Si existe peligro inmediato, no esperes al borrador: busca un lugar seguro y contacta al servicio de emergencia o prestador competente por sus canales oficiales. La aplicación no diagnostica riesgos ni da asesoría legal o sanitaria.

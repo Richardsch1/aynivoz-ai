@@ -1,5 +1,9 @@
 # Historial
 
+## 2026-11-13
+
+El detector de patrones numéricos del reporte y el filtro de sugerencias de IA reconocen dígitos decimales Unicode, incluidos alfabetos mezclados. Se conservan los umbrales del reporte, los errores sin reproducir datos, el borrador local y la revisión humana. La detección sigue siendo limitada y no cubre todas las formas de ocultar información personal.
+
 ## 2026-11-11
 
 La ayuda opcional intenta cancelar el cuerpo de las respuestas HTTP de error del proveedor antes de rechazar la sugerencia, sin leer ese contenido. Si la cancelación falla o el cuerpo no existe, conserva el error genérico y no añade reintentos. El flujo local sigue disponible.

@@ -62,6 +62,43 @@ test('patrón repartido entre zona y descripción sigue rechazado sin atribuirlo
     return true;
   });
 });
+test('rechaza decimales Unicode en patrones sensibles sin ampliar las restricciones del reporte', () => {
+  const zeros = ['\uff10', '\u0660', '\u06f0', '\u0966', '\u{1d7ce}'];
+  for (const zero of zeros) {
+    const details = [
+      zero.repeat(7), Array(7).fill(zero).join(' - '), `0${zero}0${zero}0${zero}0`,
+      ...['DNI', 'pasaporte', 'RUC'].map(label => `${label} ${zero}`),
+    ];
+    for (const field of ['locality', 'description']) {
+      for (const detail of details) {
+        const value = `EJEMPLO FICTICIO. ${detail}`;
+        assert.throws(() => validateReport({ ...example, [field]: value }), error => {
+          assert.ok(error instanceof ValidationError);
+          assert.equal(error.field, field);
+          assert.match(error.message, /Elimina/);
+          assert.ok(!error.message.includes(zero));
+          return true;
+        }, `${field}: ${JSON.stringify(detail)}`);
+      }
+    }
+    assert.throws(() => validateReport({
+      ...example, locality: `Zona ficticia ${zero.repeat(3)}`,
+      description: `${zero.repeat(4)}: EJEMPLO FICTICIO. Se observa falta de agua.`,
+    }), error => {
+      assert.ok(error instanceof ValidationError);
+      assert.equal(error.field, undefined);
+      assert.match(error.message, /Elimina/);
+      assert.ok(!error.message.includes(zero));
+      return true;
+    });
+    const positive = {
+      ...example, locality: `Zona ficticia ${zero.repeat(2)}`,
+      description: 'EJEMPLO FICTICIO. La presión del agua varía y se solicita revisar el servicio.',
+    };
+    assert.equal(validateReport(positive).locality, positive.locality);
+    assert.equal(validateReport(positive).description, positive.description);
+  }
+});
 test('rechaza patrones obvios de datos sensibles, enlaces, HTML y controles', () => {
   for (const detail of ['DNI 00000000', 'correo persona@example.invalid', 'teléfono +51 000 000 000', 'sitio https://example.invalid', '<script>alert(1)</script>', 'texto\u202eoculto', 'texto\u0000nulo']) {
     assert.throws(() => validateReport({ ...example, description: `EJEMPLO FICTICIO: ${detail}. Se observa falta de agua.` }));

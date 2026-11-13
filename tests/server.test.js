@@ -231,6 +231,35 @@ test('rechaza respuestas con enlaces, números, HTML, vacías o excesivas', asyn
     await assert.rejects(suggestSentence(input, { env, fetchImpl: async () => Response.json({ stop_reason: 'end_turn', content: [{ type: 'text', text: output }] }) }));
   }
 });
+test('rechaza dígitos decimales Unicode aislados en la sugerencia', async () => {
+  for (const zero of ['\uff10', '\u0660', '\u06f0', '\u0966', '\u{1d7ce}']) {
+    const output = `Solicito revisar el servicio en la zona ficticia ${zero}.`;
+    await assert.rejects(suggestSentence(input, {
+      env, fetchImpl: async () => Response.json({ stop_reason: 'end_turn', content: [{ type: 'text', text: output }] }),
+    }), { message: 'AI_UNSAFE_OUTPUT' });
+  }
+});
+test('API rechaza la sugerencia con decimal Unicode y recupera el flujo sin reintentar', async t => {
+  let calls = 0;
+  const unsafe = 'Solicito revisar el servicio en la zona ficticia \uff10.';
+  const { url, post } = await instance(t, { env, fetchImpl: async () => {
+    calls += 1;
+    return Response.json({ stop_reason: 'end_turn', content: [{ type: 'text', text: calls === 1 ? unsafe : sentence }] });
+  } });
+  const rejected = await post(input);
+  assert.equal(rejected.status, 502);
+  assert.deepEqual(await rejected.json(), {
+    error: 'No se pudo obtener una sugerencia segura. El borrador local sigue disponible.',
+  });
+  assert.equal(calls, 1);
+  const localPage = await fetch(url);
+  assert.equal(localPage.status, 200);
+  assert.match(await localPage.text(), /id="report-form"/);
+  const recovered = await post(input);
+  assert.equal(recovered.status, 200);
+  assert.deepEqual(await recovered.json(), { sentence, reviewRequired: true });
+  assert.equal(calls, 2);
+});
 test('rechaza controles de presentación en cualquier posición de la sugerencia', async () => {
   const outputs = [
     `\u202a${sentence}`, `Solicito\u202b revisar el servicio de agua.`, `${sentence}\u202c`,
