@@ -25,6 +25,8 @@ Abre **http://127.0.0.1:3000**. El servidor escucha exclusivamente en la interfa
 
 La descarga no presenta un trámite. Ningún botón envía reportes a una autoridad. Recargar, salir o borrar elimina el reporte de la memoria de la página; los archivos descargados deben eliminarse desde el dispositivo.
 
+Si se detecta un error al iniciar la descarga, el aviso aparece junto al borrador, recibe foco y ofrece un enlace para volver al texto. El contenido se conserva y debes confirmar la revisión de nuevo antes de reintentar. Editar o limpiar el reporte retira ese aviso.
+
 ## Qué incluye
 
 - Falta de agua, baja presión, fugas, atoros/aniegos y cambios aparentes del agua.

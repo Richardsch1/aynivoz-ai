@@ -1,5 +1,9 @@
 # Historial
 
+## 2026-11-15
+
+Los errores de descarga aparecen junto al borrador con foco visible y enlace para revisarlo. Un fallo conserva el texto, retira la revisión y bloquea la descarga hasta confirmarla de nuevo. Los errores inesperados del navegador muestran un mensaje genérico; las URLs temporales se liberan también si falla el inicio de la descarga.
+
 ## 2026-11-13
 
 El detector de patrones numéricos del reporte y el filtro de sugerencias de IA reconocen dígitos decimales Unicode, incluidos alfabetos mezclados. Se conservan los umbrales del reporte, los errores sin reproducir datos, el borrador local y la revisión humana. La detección sigue siendo limitada y no cubre todas las formas de ocultar información personal.

@@ -7,6 +7,7 @@ let instanceId = 0;
 // technology behavior still require separate manual checks.
 async function client(t) {
   const elements = new Map();
+  const downloads = { blobs: [], urls: [], clicks: [], revoked: [], timers: [], urlAttempts: 0, failure: null };
   const document = {
     activeElement: null,
     getElementById: id => elements.get(id),
@@ -39,6 +40,11 @@ async function client(t) {
     removeAttribute(name) { this.attributes.delete(name); }
     get href() { return this.getAttribute('href') ?? ''; }
     set href(value) { this.setAttribute('href', value); }
+    click() {
+      assert.equal(this.id, 'a');
+      downloads.clicks.push({ url: this.href, filename: this.download });
+      if (downloads.failure === 'click') throw new Error('test-only-internal-download-detail');
+    }
     focus() { if (!this.hidden) document.activeElement = this; }
     scrollIntoView() {}
     reset() {
@@ -49,12 +55,13 @@ async function client(t) {
   }
   for (const id of [
     'report-form', 'category', 'scope', 'provider', 'locality', 'description', 'privacy',
-    'report-error', 'report-error-detail', 'report-error-link', 'message', 'draft', 'draft-section', 'reviewed',
+    'report-error', 'report-error-detail', 'report-error-link', 'message', 'draft', 'draft-section', 'draft-error', 'draft-error-detail', 'reviewed',
     'download', 'ai-consent', 'ai-result', 'ai-status', 'ask-ai', 'demo', 'erase',
     'channel-list', 'catalog-status', 'extra-help',
   ]) elements.set(id, new Element(id));
   elements.get('report-error').hidden = true;
   elements.get('draft-section').hidden = true;
+  elements.get('draft-error').hidden = true;
   elements.get('download').disabled = true;
   elements.get('ask-ai').disabled = true;
   elements.get('provider').value = 'desconocido';
@@ -70,32 +77,53 @@ async function client(t) {
     }
   }
   const window = new Element('window');
+  class TrackedBlob extends globalThis.Blob {
+    constructor(...args) { super(...args); downloads.blobs.push(this); }
+  }
   const replacements = {
     document,
     window,
     FormData,
+    Blob: TrackedBlob,
+    setTimeout: (callback, delay) => {
+      downloads.timers.push({ callback, delay });
+      return downloads.timers.length;
+    },
     fetch: async url => {
       assert.equal(url, '/api/config');
       return { json: async () => ({ aiAvailable: false }) };
     },
   };
   const originals = new Map(Object.keys(replacements).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  const urlOriginals = new Map(['createObjectURL', 'revokeObjectURL'].map(key => [key, Object.getOwnPropertyDescriptor(URL, key)]));
   t.after(() => {
     for (const [key, descriptor] of originals) {
       if (descriptor) Object.defineProperty(globalThis, key, descriptor);
       else delete globalThis[key];
     }
+    for (const [key, descriptor] of urlOriginals) {
+      if (descriptor) Object.defineProperty(URL, key, descriptor);
+      else delete URL[key];
+    }
   });
   for (const [key, value] of Object.entries(replacements)) {
     Object.defineProperty(globalThis, key, { value, configurable: true, writable: true });
   }
+  Object.defineProperty(URL, 'createObjectURL', { configurable: true, writable: true, value: () => {
+    downloads.urlAttempts += 1;
+    if (downloads.failure === 'url') throw new Error('test-only-internal-download-detail');
+    const url = `blob:test-only-${downloads.urlAttempts}`;
+    downloads.urls.push(url);
+    return url;
+  } });
+  Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, writable: true, value: url => downloads.revoked.push(url) });
   await import(`../public/app.js?client-test=${++instanceId}`);
   const $ = id => elements.get(id);
   const fill = (description = 'EJEMPLO FICTICIO. Se observa falta de agua en varias viviendas de la zona.') => {
     for (const [field, value] of Object.entries({ category: 'sin-agua', scope: 'comunidad', provider: 'desconocido', locality: 'Distrito ficticio', description })) $(field).value = value;
     $('privacy').checked = true;
   };
-  return { $, document, window, fill };
+  return { $, document, window, fill, downloads };
 }
 
 test('error del reporte recibe foco y conserva los campos sin crear un borrador', async t => {
@@ -253,4 +281,115 @@ test('salir de la página limpia el reporte y restaura canales sin prestador con
   assert.match($('draft').value, /Prestador competente: confirmar/);
   assert.equal($('reviewed').checked, false);
   assert.equal($('download').disabled, true);
+});
+
+test('descarga inválida enfoca el error local, conserva contenido y retira la revisión sin crear archivos', async t => {
+  const { $, document, fill, downloads } = await client(t);
+  fill();
+  await $('report-form').emit('submit');
+  $('ai-consent').checked = true;
+  await $('ai-consent').emit('change');
+  const description = $('description').value;
+  for (const value of ['', 'EJEMPLO FICTICIO. <texto> que requiere revisar.']) {
+    $('draft').value = value;
+    await $('draft').emit('input');
+    $('reviewed').checked = true;
+    await $('reviewed').emit('change');
+    $('download').focus();
+    await $('download').emit('click');
+    assert.equal($('draft-error').hidden, false);
+    assert.match($('draft-error-detail').textContent, /^Borrador:/);
+    assert.equal(document.activeElement, $('draft-error'));
+    assert.equal($('message').textContent, '');
+    assert.equal($('draft').value, value);
+    assert.equal($('draft-section').hidden, false);
+    assert.equal($('description').value, description);
+    assert.equal($('locality').value, 'Distrito ficticio');
+    assert.equal($('ai-consent').checked, true);
+    assert.equal($('reviewed').checked, false);
+    assert.equal($('download').disabled, true);
+    assert.equal(downloads.blobs.length, 0);
+    assert.equal(downloads.urlAttempts, 0);
+    assert.equal(downloads.clicks.length, 0);
+    assert.equal(downloads.timers.length, 0);
+  }
+});
+
+test('editar o limpiar retira el error de descarga y exige una nueva revisión', async t => {
+  const { $, window, fill, downloads } = await client(t);
+  for (const [control, event] of [
+    ['draft', 'input'], ['report-form', 'input'], ['demo', 'click'], ['erase', 'click'], ['window', 'pagehide'],
+  ]) {
+    fill();
+    await $('report-form').emit('submit');
+    $('draft').value = '';
+    await $('draft').emit('input');
+    $('reviewed').checked = true;
+    await $('reviewed').emit('change');
+    await $('download').emit('click');
+    assert.equal($('draft-error').hidden, false);
+    assert.notEqual($('draft-error-detail').textContent, '');
+    if (control === 'draft') $('draft').value = 'EJEMPLO FICTICIO. Solicito revisar el servicio de agua.';
+    await (control === 'window' ? window : $(control)).emit(event);
+    assert.equal($('draft-error').hidden, true, control);
+    assert.equal($('draft-error-detail').textContent, '', control);
+    assert.equal($('reviewed').checked, false, control);
+    assert.equal($('download').disabled, true, control);
+  }
+  fill();
+  await $('report-form').emit('submit');
+  assert.equal($('download').disabled, true);
+  $('reviewed').checked = true;
+  await $('reviewed').emit('change');
+  assert.equal($('download').disabled, false);
+  assert.equal(downloads.blobs.length, 0);
+  assert.equal(downloads.urlAttempts, 0);
+  assert.equal(downloads.clicks.length, 0);
+});
+
+test('fallos de descarga no filtran detalles, revocan URL creada y permiten recuperación ficticia', async t => {
+  const { $, document, fill, downloads } = await client(t);
+  fill();
+  await $('report-form').emit('submit');
+  const draft = $('draft').value;
+  const generic = 'No se pudo iniciar la descarga. El borrador sigue disponible. Confirma la revisión para volver a intentarlo.';
+  for (const failure of ['url', 'click']) {
+    downloads.failure = failure;
+    const urlsBefore = downloads.urls.length;
+    const timersBefore = downloads.timers.length;
+    $('reviewed').checked = true;
+    await $('reviewed').emit('change');
+    await $('download').emit('click');
+    assert.equal($('draft-error').hidden, false);
+    assert.equal($('draft-error-detail').textContent, generic);
+    assert.equal(document.activeElement, $('draft-error'));
+    assert.equal($('message').textContent, '');
+    assert.equal($('draft').value, draft);
+    assert.equal($('reviewed').checked, false);
+    assert.equal($('download').disabled, true);
+    if (failure === 'url') {
+      assert.equal(downloads.urls.length, urlsBefore);
+      assert.equal(downloads.timers.length, timersBefore);
+    } else {
+      assert.equal(downloads.urls.length, urlsBefore + 1);
+      assert.equal(downloads.timers.length, timersBefore + 1);
+      const timer = downloads.timers.at(-1);
+      assert.equal(timer.delay, 1000);
+      timer.callback();
+      assert.deepEqual(downloads.revoked, downloads.urls);
+    }
+  }
+  downloads.failure = null;
+  $('reviewed').checked = true;
+  await $('reviewed').emit('change');
+  await $('download').emit('click');
+  assert.equal($('draft-error').hidden, true);
+  assert.equal($('draft-error-detail').textContent, '');
+  assert.match($('message').textContent, /Descarga iniciada/);
+  assert.deepEqual(downloads.clicks.at(-1), { url: downloads.urls.at(-1), filename: 'aynivoz-borrador-revisado.txt' });
+  assert.equal(await downloads.blobs.at(-1).text(), draft);
+  const timer = downloads.timers.at(-1);
+  assert.equal(timer.delay, 1000);
+  timer.callback();
+  assert.deepEqual(downloads.revoked, downloads.urls);
 });

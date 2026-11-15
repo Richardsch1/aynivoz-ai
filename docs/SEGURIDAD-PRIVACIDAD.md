@@ -8,6 +8,8 @@ Al limpiar por salida, el catálogo se reconstruye después de restablecer el pr
 
 El borrador descargado sí persiste en el dispositivo y puede contener lo que la persona haya escrito. Debe revisarse y custodiarse. No hay borrado remoto de descargas. El sistema operativo, extensiones, capturas y otras aplicaciones pueden retener contenido.
 
+La validación de revisión y texto se ejecuta antes de crear el archivo y su URL temporal. Los errores de descarga se muestran con texto seguro junto al borrador, conservan su contenido y requieren confirmar la revisión de nuevo. Los fallos inesperados del navegador tienen un mensaje genérico sin su detalle interno. Si ya se creó una URL temporal, se programa su revocación también cuando falla el inicio de la descarga. Esto libera esa referencia en la aplicación; no borra archivos ya guardados ni confirma que el navegador los haya guardado correctamente.
+
 No se piden datos de identidad ni se aceptan adjuntos o geolocalización. El detector de patrones no detecta todos los nombres, domicilios o información sensible. El consentimiento no vuelve segura una descripción que incluya datos de terceros.
 
 Con Claude activado se transmiten solo dos valores de listas cerradas, después de la autorización de la persona. No se promete anonimato ni retención cero por parte del proveedor. La integración usa la API comercial de la cuenta del operador; revisa sus términos, retención y costos antes de habilitarla. Revocar consentimiento no revierte datos ya enviados.

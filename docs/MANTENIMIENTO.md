@@ -2,6 +2,24 @@
 
 Este registro describe cambios y comprobaciones realmente realizados. No representa uso comunitario ni resultados de impacto.
 
+## 2026-11-15 · Recuperación de errores al descargar
+
+**Problema reproducido:** con un reporte ficticio válido, vaciar el borrador, marcar la revisión e intentar descargar ya bloqueaba la creación del archivo. Sin embargo, el error se escribía lejos del borrador, el foco quedaba en el botón y la revisión permanecía marcada con la descarga habilitada. Se confirmó ese estado en el navegador integrado y en el DOM simulado. No se observó que un borrador inválido se guardara ni se utilizaron datos de ciudadanos.
+
+**Cambio:** los errores detectados al iniciar la descarga aparecen junto al borrador en un resumen con foco visible y enlace para volver al texto. Se conservan el borrador y el reporte, se retira la confirmación de revisión y se bloquea la descarga hasta confirmarla de nuevo. Editar el texto o limpiar el reporte retira el aviso anterior. Solo los errores de validación locales muestran su mensaje conocido; los fallos inesperados usan un mensaje genérico mediante `textContent`. La validación sigue ocurriendo antes de crear el archivo o su URL temporal. La revocación de una URL creada se programa también si falla el clic del enlace.
+
+**Verificación local:** Windows, Node v24.12.0. Con el código anterior, las seis pruebas previas del cliente pasaron y los tres grupos nuevos fallaron por ausencia del aviso local. Tras la corrección, la suite completa aprobó 54 de 54 pruebas. Se comprobaron borrador vacío y con etiquetas sin creación de Blob, URL o clic; conservación del contenido y consentimiento opcional; limpieza por edición, ejemplo, borrado y salida; fallos simulados de creación de URL y clic sin exponer su detalle; revocación diferida y recuperación con contenido y nombre de archivo ficticios. `npm run check`, `npm test`, `git diff --check` y `npm audit --omit=dev --audit-level=high` terminaron sin errores; la auditoría no reportó vulnerabilidades. Los archivos y errores de descarga se simularon en las pruebas; no se usaron claves reales ni se llamó a Anthropic.
+
+**Comprobación en navegador integrado:** con IA desactivada y el ejemplo ficticio, se confirmó que el borrador vacío muestra el aviso junto al texto, recibe foco, conserva el texto vacío y retira la revisión con descarga bloqueada. Tab llevó al enlace y Enter enfocó el área editable. Corregir el texto retiró el aviso y mantuvo la revisión pendiente; marcarla habilitó el botón. Se guardó una captura local fuera del repositorio. No se verificó el guardado de un archivo real, otros navegadores ni lectores de pantalla. Un bloqueo silencioso de descargas del navegador puede no lanzar una excepción; el mensaje de inicio no acredita que el archivo se haya guardado.
+
+El resultado remoto de este cambio debe consultarse en [GitHub Actions](https://github.com/Richardsch1/aynivoz-ai/actions); los resultados locales no confirman por sí solos CI en Node 22 y 24.
+
+**Referencia de diseño:** [notificaciones de formularios de W3C WAI](https://www.w3.org/WAI/tutorials/forms/notifications/), consultada el 15 de noviembre de 2026. Se aplican un mensaje próximo al contenido, un enlace para corregirlo y gestión del foco. No se acredita conformidad con WCAG ni evaluación con tecnologías de asistencia.
+
+**Contraste de fuentes:** las cuatro fuentes primarias del [catálogo](FUENTES.md) devolvieron HTTP 418 al abrirlas. El texto oficial indexado consultado no mostró discrepancias en números ni propósitos. No se confirmó atención efectiva ni disponibilidad en tiempo real, y esos bloqueos no demuestran enlaces rotos. Se conservan contactos y fechas sin renovar la verificación global.
+
+**Próximos pasos:** evaluar el anuncio y la recuperación del error con lectores de pantalla y otros navegadores, y comprobar el guardado del archivo en ellos. Sigue pendiente confirmar la restauración desde la caché de navegación y la validación comunitaria. La prueba opcional con una cuenta real de Anthropic requiere consentimiento y presupuesto propios. No se atribuye adopción ni impacto validado.
+
 ## 2026-11-13 · Patrones numéricos con dígitos Unicode
 
 **Recuperación local:** la carpeta configurada no existía al iniciar. Tras buscar la copia en ubicaciones cercanas y confirmar el remoto, se creó una copia nueva desde el commit público `bd7acdf33435628bc293375ffc3b572458b9f0ad` en la ruta original. El acceso existente de Richardsch1 permitió una comprobación de publicación sin cambios. La recuperación contiene lo publicado en GitHub; no acredita recuperar archivos o cambios locales que no estuvieran publicados.

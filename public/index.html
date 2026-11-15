@@ -55,6 +55,11 @@
     <section id="draft-section" class="draft-panel" aria-labelledby="draft-title" hidden>
       <div class="section-heading"><span class="step">2</span><div><h2 id="draft-title">Revisa tu solicitud</h2><p id="report-status">Reporte registrado en memoria de esta pestaña. No presentado.</p></div></div>
       <p class="review-note">Esto es un borrador libre. El canal oficial puede requerir su propio formato y datos adicionales. Complétalos directamente allí.</p>
+      <div id="draft-error" class="message" role="group" tabindex="-1" aria-labelledby="draft-error-title" aria-describedby="draft-error-detail" hidden>
+        <p id="draft-error-title"><strong>No se pudo descargar el borrador.</strong></p>
+        <p id="draft-error-detail"></p>
+        <a href="#draft">Volver a revisar el borrador</a>
+      </div>
       <label for="draft">Borrador editable</label><textarea id="draft" rows="18" maxlength="8000" spellcheck="true"></textarea>
       <details class="ai-box"><summary>Ayuda opcional de Claude</summary><p id="ai-status">Comprobando disponibilidad…</p><p>Si está habilitado por quien opera el servidor, puedes pedir una frase alternativa. Se enviarán a Anthropic solo el <strong>tipo de problema y el alcance</strong>. La descripción, zona y borrador no se enviarán. El proveedor puede procesar estos datos según sus condiciones.</p><label class="checkbox"><input type="checkbox" id="ai-consent"><span>Autorizo enviar esas dos opciones a Anthropic para obtener una sugerencia que revisaré.</span></label><button type="button" id="ask-ai" class="secondary" disabled>Pedir frase opcional</button><p id="ai-result" class="suggestion" role="status"></p><p class="help">La sugerencia no modifica el borrador. Si sirve, puedes incorporarla manualmente después de revisarla.</p></details>
       <label class="checkbox"><input type="checkbox" id="reviewed"><span>Revisé los hechos, el destinatario y el texto. Entiendo que descargar no equivale a presentar una solicitud.</span></label>

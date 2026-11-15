@@ -1,4 +1,4 @@
-import { validateReport, createDraft, aiPayload, assertReviewedDraft } from './domain.js';
+import { validateReport, createDraft, aiPayload, assertReviewedDraft, ValidationError } from './domain.js';
 import { channelsFor, catalogNeedsReview, VERIFIED_AT } from './catalog.js';
 
 const $ = id => document.getElementById(id);
@@ -27,12 +27,18 @@ function clearReportError() {
   }
 }
 
+function clearDraftError() {
+  $('draft-error').hidden = true;
+  $('draft-error-detail').textContent = '';
+}
+
 function invalidate() {
   revision += 1;
   controller?.abort();
   pending = false;
   report = null;
   clearReportError();
+  clearDraftError();
   $('draft').value = '';
   $('draft-section').hidden = true;
   $('reviewed').checked = false;
@@ -121,19 +127,31 @@ $('erase').addEventListener('click', () => {
   $('message').textContent = 'Se borró el contenido de esta pestaña. Los archivos ya descargados se eliminan desde tu dispositivo.';
   renderChannels();
 });
-$('draft').addEventListener('input', () => { $('reviewed').checked = false; $('download').disabled = true; });
+$('draft').addEventListener('input', () => { clearDraftError(); $('reviewed').checked = false; $('download').disabled = true; });
 $('reviewed').addEventListener('change', () => { $('download').disabled = !$('reviewed').checked; });
 $('download').addEventListener('click', () => {
+  clearDraftError();
+  let url;
   try {
     const content = assertReviewedDraft($('draft').value, $('reviewed').checked);
-    const url = URL.createObjectURL(new Blob([content], { type: 'text/plain;charset=utf-8' }));
+    url = URL.createObjectURL(new Blob([content], { type: 'text/plain;charset=utf-8' }));
     const link = document.createElement('a');
     link.href = url;
     link.download = 'aynivoz-borrador-revisado.txt';
     link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
     $('message').textContent = 'Descarga iniciada. La solicitud no ha sido presentada.';
-  } catch (error) { $('message').textContent = error.message; }
+  } catch (error) {
+    $('message').textContent = '';
+    $('reviewed').checked = false;
+    $('download').disabled = true;
+    $('draft-error-detail').textContent = error instanceof ValidationError
+      ? error.message
+      : 'No se pudo iniciar la descarga. El borrador sigue disponible. Confirma la revisión para volver a intentarlo.';
+    $('draft-error').hidden = false;
+    $('draft-error').focus();
+  } finally {
+    if (url) setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
 });
 $('ai-consent').addEventListener('change', () => {
   if (!$('ai-consent').checked) { revision += 1; controller?.abort(); pending = false; $('ai-result').textContent = ''; }
