@@ -2,6 +2,24 @@
 
 Este registro describe cambios y comprobaciones realmente realizados. No representa uso comunitario ni resultados de impacto.
 
+## 2026-11-16 · Rechazo de respuestas con UTF-8 inválido
+
+**Problema reproducido:** una respuesta JSON simulada del proveedor con un byte inicial UTF-8 sin continuación dentro de una palabra se aceptó con un carácter de reemplazo. El decodificador predeterminado reparaba silenciosamente los bytes inválidos antes de analizar el JSON. También se aceptó un metadato simulado con bytes inválidos y la API devolvió HTTP 200. No se observó una fuga de datos, un incidente con usuarios ni una respuesta dañada de Anthropic real.
+
+**Cambio:** la decodificación del cuerpo usa `TextDecoder('utf-8', { fatal: true })`, después del límite de 32 KiB y antes de analizar el JSON. Si hay bytes inválidos en texto o metadatos, se rechaza la respuesta completa. La API conserva el error HTTP 502 genérico, sin contenido del proveedor ni detalle interno, y admite un intento posterior explícito sin reintentos automáticos. Se mantienen el tratamiento del BOM inicial, los caracteres válidos divididos entre fragmentos, los límites existentes y el borrador local.
+
+**Verificación local:** Windows, Node v24.12.0. Los tres grupos nuevos fallaron con el código anterior: una continuación aislada y un metadato incompleto se aceptaron y la API devolvió 200 en lugar de 502. Con la corrección, la suite completa aprobó 57 de 57 pruebas. Se comprobaron continuación aislada, byte inicial seguido de ASCII, codificación excesivamente larga, sustituto codificado y secuencias incompletas; también rechazo en metadatos, error público exacto, una llamada por intento y recuperación API 502 → 200 con página local disponible. Una secuencia incompleta fuera del JSON al final del cuerpo ya era rechazada por su sintaxis; ese caso conserva el rechazo, sin atribuirle una aceptación anterior. Pasan BOM fragmentado, español con acentos y `ñ` dividida entre bytes, el tamaño exacto de 32 KiB y U+FFFD literal correctamente codificado. No se convierte este cambio en un filtro del carácter de reemplazo ni en garantía de exactitud semántica o de toda anomalía Unicode en cadenas JSON.
+
+`npm run check`, `npm test`, `git diff --check` y `npm audit --omit=dev --audit-level=high` terminaron sin errores; la auditoría no reportó vulnerabilidades. Todas las respuestas del proveedor fueron simuladas, con datos ficticios y sin claves reales ni llamadas a Anthropic. Este cambio del servidor no tuvo un nuevo recorrido de interfaz en navegador; la página local se comprobó mediante HTTP en las pruebas.
+
+El resultado remoto de este cambio debe consultarse en [GitHub Actions](https://github.com/Richardsch1/aynivoz-ai/actions); los resultados locales no confirman por sí solos CI en Node 22 y 24.
+
+**Referencia técnica:** [TextDecoder en el estándar de codificación de WHATWG](https://encoding.spec.whatwg.org/#interface-textdecoder), consultado el 16 de noviembre de 2026. El modo predeterminado reemplaza errores de decodificación por U+FFFD; el modo `fatal` lanza un error. La validación del cuerpo no sustituye la revisión humana de la frase.
+
+**Contraste de fuentes:** las cuatro fuentes primarias del [catálogo](FUENTES.md) devolvieron HTTP 418 al abrirlas. El texto oficial indexado consultado coincidió con los contactos y propósitos registrados. No se confirmó atención efectiva ni disponibilidad en tiempo real, y esos bloqueos no acreditan enlaces rotos. Se mantienen los datos y fechas sin renovar la verificación global.
+
+**Próximos pasos:** añadir cobertura permanente de cancelación y respuestas tardías en el cliente; la simulación exploratoria de esta revisión descartó la respuesta anterior tras revocar consentimiento sin interrumpir la petición nueva, pero no se añadió a la suite. Continúan pendientes las comprobaciones con lectores de pantalla y otros navegadores, el guardado de descargas y la validación comunitaria. Una prueba con una cuenta real de Anthropic requiere consentimiento y presupuesto propios. No se atribuye adopción ni impacto validado.
+
 ## 2026-11-15 · Recuperación de errores al descargar
 
 **Problema reproducido:** con un reporte ficticio válido, vaciar el borrador, marcar la revisión e intentar descargar ya bloqueaba la creación del archivo. Sin embargo, el error se escribía lejos del borrador, el foco quedaba en el botón y la revisión permanecía marcada con la descarga habilitada. Se confirmó ese estado en el navegador integrado y en el DOM simulado. No se observó que un borrador inválido se guardara ni se utilizaron datos de ciudadanos.

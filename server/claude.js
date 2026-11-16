@@ -17,8 +17,8 @@ async function readProviderJson(response) {
     if (bytes > MAX_RESPONSE_BYTES) throw new Error('AI_UNSAFE_OUTPUT');
     chunks.push(chunk);
   }
-  // Decode once, preserving split UTF-8 characters and Response.json()'s BOM handling.
-  return JSON.parse(new TextDecoder().decode(Buffer.concat(chunks, bytes)));
+  // Decode once: preserve split characters and BOM handling, reject invalid UTF-8.
+  return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks, bytes)));
 }
 
 export function validateAiRequest(raw) {

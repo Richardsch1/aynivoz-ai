@@ -26,6 +26,19 @@ function providerJsonBytes(size) {
   assert.equal(bytes.byteLength, size);
   return bytes;
 }
+function providerJsonWithInvalidUtf8(invalid, inMetadata = false) {
+  const marker = 'TEST_ONLY_UTF8_MARKER';
+  const payload = {
+    stop_reason: 'end_turn',
+    content: [{ type: 'text', text: inMetadata ? sentence : `Solicito revisar el servicio en la zona ficticia ${marker}.` }],
+    padding: inMetadata ? marker : env.ANTHROPIC_API_KEY,
+  };
+  const bytes = Buffer.from(JSON.stringify(payload));
+  const offset = bytes.indexOf(marker);
+  assert.ok(offset >= 0);
+  // Corrupt only string contents, keeping all JSON delimiters intact.
+  return Buffer.concat([bytes.subarray(0, offset), Buffer.from(invalid), bytes.subarray(offset + marker.length)]);
+}
 function providerStream(chunks, headers = {}, status = 200) {
   const state = { pulls: 0, cancelled: false };
   const body = new ReadableStream({
@@ -180,10 +193,18 @@ test('limita bytes del proveedor por cabecera o lectura y cancela antes del rest
     assert.equal(state.cancelled, true);
   }
 });
-test('conserva la aceptación de JSON con BOM UTF-8 inicial', async () => {
-  const bytes = Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), providerJsonBytes(512)]);
-  const { response } = providerStream([bytes.subarray(0, 1), bytes.subarray(1)]);
-  assert.equal(await suggestSentence(input, { env, fetchImpl: async () => response }), sentence);
+test('conserva BOM, español con UTF-8 partido y un U+FFFD bien codificado', async () => {
+  const spanish = 'EJEMPLO FICTICIO. Solicito revisar mañana la presión y la atención de agua.';
+  const payload = { stop_reason: 'end_turn', content: [{ type: 'text', text: spanish }] };
+  const bytes = Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from(JSON.stringify(payload))]);
+  const split = bytes.indexOf(Buffer.from('ñ')) + 1;
+  assert.ok(split > 0);
+  const { response } = providerStream([bytes.subarray(0, 1), bytes.subarray(1, split), bytes.subarray(split)]);
+  assert.equal(await suggestSentence(input, { env, fetchImpl: async () => response }), spanish);
+  const literalReplacement = `${spanish} \ufffd`;
+  assert.equal(await suggestSentence(input, {
+    env, fetchImpl: async () => Response.json({ stop_reason: 'end_turn', content: [{ type: 'text', text: literalReplacement }] }),
+  }), literalReplacement);
 });
 test('acepta exactamente treinta y dos KiB con UTF-8 partido y rechaza un byte adicional', async () => {
   const exact = providerJsonBytes(providerByteLimit);
@@ -198,6 +219,49 @@ test('acepta exactamente treinta y dos KiB con UTF-8 partido y rechaza un byte a
   const invalid = providerStream([oversized.slice(0, split), oversized.slice(split)]);
   await assert.rejects(suggestSentence(input, { env, fetchImpl: async () => invalid.response }), { message: 'AI_UNSAFE_OUTPUT' });
   assert.equal(invalid.state.cancelled, true);
+});
+test('rechaza UTF-8 inválido en una frase sin repararlo silenciosamente', async () => {
+  const invalidSequences = [
+    [0x80], // Isolated continuation.
+    [0xc3, 0x61], // Lead byte followed by ASCII.
+    [0xc0, 0xaf], // Overlong encoding.
+    [0xed, 0xa0, 0x80], // Encoded surrogate.
+  ];
+  for (const invalid of invalidSequences) {
+    const bytes = providerJsonWithInvalidUtf8(invalid);
+    const { response } = providerStream([bytes]);
+    await assert.rejects(suggestSentence(input, { env, fetchImpl: async () => response }),
+      `rechaza bytes ${JSON.stringify(invalid)}`);
+  }
+});
+test('rechaza UTF-8 inválido en metadatos y secuencias incompletas al final del cuerpo', async () => {
+  const metadata = providerJsonWithInvalidUtf8([0xe2, 0x82], true);
+  const { response } = providerStream([metadata]);
+  await assert.rejects(suggestSentence(input, { env, fetchImpl: async () => response }));
+  const incompleteAtEnd = Buffer.concat([providerJsonBytes(512), Buffer.from([0xc3])]);
+  const trailing = providerStream([incompleteAtEnd.subarray(0, -1), incompleteAtEnd.subarray(-1)]);
+  await assert.rejects(suggestSentence(input, { env, fetchImpl: async () => trailing.response }));
+});
+test('API descarta UTF-8 inválido sin filtrar el cuerpo y recupera la siguiente petición', async t => {
+  let calls = 0;
+  const corrupt = providerJsonWithInvalidUtf8([0xc3, 0x61]);
+  const { url, post } = await instance(t, { env, fetchImpl: async () => {
+    calls += 1;
+    return calls === 1 ? providerStream([corrupt]).response : Response.json({ stop_reason: 'end_turn', content: [{ type: 'text', text: sentence }] });
+  } });
+  const rejected = await post(input);
+  assert.equal(rejected.status, 502);
+  assert.deepEqual(await rejected.json(), {
+    error: 'No se pudo obtener una sugerencia segura. El borrador local sigue disponible.',
+  });
+  assert.equal(calls, 1);
+  const localPage = await fetch(url);
+  assert.equal(localPage.status, 200);
+  assert.match(await localPage.text(), /id="report-form"/);
+  const recovered = await post(input);
+  assert.equal(recovered.status, 200);
+  assert.deepEqual(await recovered.json(), { sentence, reviewRequired: true });
+  assert.equal(calls, 2);
 });
 test('API descarta respuesta excesiva sin reintento y conserva recuperación y página local', async t => {
   let calls = 0;

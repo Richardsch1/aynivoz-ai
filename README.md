@@ -71,6 +71,8 @@ El adaptador acepta únicamente respuestas finalizadas normalmente (`stop_reason
 
 El cuerpo de respuesta del proveedor se limita a **32 KiB antes de analizar el JSON**. Si la cabecera anuncia un tamaño mayor o la lectura supera ese límite, se cancela el cuerpo y se descarta la sugerencia. Se cuentan bytes, también cuando falta la cabecera o declara menos. Esto acota lo que la aplicación acumula para analizar; no fija el consumo total de memoria o de red del proceso.
 
+Si la respuesta contiene bytes UTF-8 inválidos, se descarta completa en lugar de sustituir silenciosamente letras dañadas. Se conserva el borrador local y no hay reintentos automáticos. Una codificación válida no garantiza que la frase sea correcta: debes revisarla.
+
 Referencia técnica: [Messages API de Anthropic](https://platform.claude.com/docs/en/api/overview). El adaptador usa la versión estable `2023-06-01`, todavía documentada; el modelo se configura en servidor.
 
 ## Fuentes y cobertura

@@ -1,5 +1,9 @@
 # Historial
 
+## 2026-11-16
+
+El adaptador de Claude descarta respuestas con bytes UTF-8 inválidos en lugar de aceptar frases con caracteres sustituidos por daños en la codificación. Conserva UTF-8 válido dividido entre fragmentos y BOM inicial, el error genérico, el borrador local y la revisión humana, sin reintentos automáticos.
+
 ## 2026-11-15
 
 Los errores de descarga aparecen junto al borrador con foco visible y enlace para revisarlo. Un fallo conserva el texto, retira la revisión y bloquea la descarga hasta confirmarla de nuevo. Los errores inesperados del navegador muestran un mensaje genérico; las URLs temporales se liberan también si falla el inicio de la descarga.
