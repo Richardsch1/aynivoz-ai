@@ -3,11 +3,18 @@ import assert from 'node:assert/strict';
 
 let instanceId = 0;
 
+function deferred() {
+  let resolve, reject;
+  const promise = new Promise((accept, fail) => { resolve = accept; reject = fail; });
+  return { promise, resolve, reject };
+}
+
 // Simulate only the DOM operations used by app.js. Browser focus and assistive
 // technology behavior still require separate manual checks.
-async function client(t) {
+async function client(t, { aiAvailable = false } = {}) {
   const elements = new Map();
   const downloads = { blobs: [], urls: [], clicks: [], revoked: [], timers: [], urlAttempts: 0, failure: null };
+  const aiRequests = [];
   const document = {
     activeElement: null,
     getElementById: id => elements.get(id),
@@ -89,9 +96,14 @@ async function client(t) {
       downloads.timers.push({ callback, delay });
       return downloads.timers.length;
     },
-    fetch: async url => {
-      assert.equal(url, '/api/config');
-      return { json: async () => ({ aiAvailable: false }) };
+    fetch: async (url, options) => {
+      if (url === '/api/config') return { json: async () => ({ aiAvailable }) };
+      assert.equal(url, '/api/assist');
+      assert.equal(aiAvailable, true, 'la ayuda diferida requiere configuración explícita en la prueba');
+      const response = deferred();
+      // Deliberately ignore aborts so tests can deliver late responses deterministically.
+      aiRequests.push({ options, ...response });
+      return response.promise;
     },
   };
   const originals = new Map(Object.keys(replacements).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
@@ -123,7 +135,7 @@ async function client(t) {
     for (const [field, value] of Object.entries({ category: 'sin-agua', scope: 'comunidad', provider: 'desconocido', locality: 'Distrito ficticio', description })) $(field).value = value;
     $('privacy').checked = true;
   };
-  return { $, document, window, fill, downloads };
+  return { $, document, window, fill, downloads, aiRequests };
 }
 
 test('error del reporte recibe foco y conserva los campos sin crear un borrador', async t => {
@@ -392,4 +404,161 @@ test('fallos de descarga no filtran detalles, revocan URL creada y permiten recu
   assert.equal(timer.delay, 1000);
   timer.callback();
   assert.deepEqual(downloads.revoked, downloads.urls);
+});
+
+test('ayuda opcional envía solo opciones autorizadas y mantiene el borrador mientras espera', async t => {
+  const { $, fill, aiRequests, downloads } = await client(t, { aiAvailable: true });
+  fill();
+  $('provider').value = 'sedapal';
+  await $('report-form').emit('submit');
+  const draft = 'EJEMPLO FICTICIO. Texto local reservado para revisión manual.';
+  $('draft').value = draft;
+  await $('draft').emit('input');
+  $('reviewed').checked = true;
+  await $('reviewed').emit('change');
+  assert.equal($('ask-ai').disabled, true);
+  assert.equal(aiRequests.length, 0);
+  $('ai-consent').checked = true;
+  await $('ai-consent').emit('change');
+  assert.equal($('ask-ai').disabled, false);
+  const pending = $('ask-ai').emit('click');
+  assert.equal(aiRequests.length, 1);
+  const request = aiRequests[0];
+  assert.equal(request.options.method, 'POST');
+  assert.deepEqual(request.options.headers, { 'Content-Type': 'application/json' });
+  assert.deepEqual(JSON.parse(request.options.body), { category: 'sin-agua', scope: 'comunidad', consent: true });
+  assert.ok(request.options.signal instanceof AbortSignal);
+  assert.equal(request.options.signal.aborted, false);
+  assert.equal($('ask-ai').disabled, true);
+  assert.equal($('draft').value, draft);
+  const sentence = 'EJEMPLO FICTICIO. Solicito revisar el servicio de agua.';
+  request.resolve({ ok: true, json: async () => ({ sentence }) });
+  await pending;
+  assert.equal($('ai-result').textContent, `Sugerencia sin verificar: ${sentence}`);
+  assert.equal($('ask-ai').disabled, false);
+  assert.equal($('draft').value, draft);
+  assert.equal($('reviewed').checked, true);
+  assert.equal($('download').disabled, false);
+  assert.equal(downloads.blobs.length, 0);
+  assert.equal(aiRequests.length, 1);
+});
+
+test('revocar, editar o limpiar aborta la ayuda y descarta resoluciones y errores tardíos', async t => {
+  const { $, window, fill, aiRequests } = await client(t, { aiAvailable: true });
+  for (const action of ['consent', 'edit', 'demo', 'erase', 'pagehide']) {
+    for (const outcome of ['resolve', 'reject']) {
+      fill();
+      await $('report-form').emit('submit');
+      $('reviewed').checked = true;
+      await $('reviewed').emit('change');
+      $('ai-consent').checked = true;
+      await $('ai-consent').emit('change');
+      assert.equal($('ask-ai').disabled, false);
+      const pending = $('ask-ai').emit('click');
+      const request = aiRequests.at(-1);
+      const draft = $('draft').value;
+      if (action === 'consent') {
+        $('ai-consent').checked = false;
+        await $('ai-consent').emit('change');
+      } else if (action === 'edit') {
+        $('description').value = 'EJEMPLO FICTICIO. Observación corregida para revisar el servicio.';
+        await $('report-form').emit('input');
+      } else await (action === 'pagehide' ? window : $(action)).emit(action === 'pagehide' ? 'pagehide' : 'click');
+      assert.equal(request.options.signal.aborted, true, `${action}: aborta la petición`);
+      assert.equal($('ai-result').textContent, '');
+      assert.equal($('ai-consent').checked, false);
+      assert.equal($('ask-ai').disabled, true);
+      assert.equal($('draft').value, action === 'consent' ? draft : '');
+      assert.equal($('draft-section').hidden, action !== 'consent');
+      assert.equal($('reviewed').checked, action === 'consent');
+      assert.equal($('download').disabled, action !== 'consent');
+      const snapshot = ['description', 'locality', 'provider'].map(id => $(id).value);
+      const message = $('message').textContent;
+      const calls = aiRequests.length;
+      if (outcome === 'resolve') request.resolve({ ok: true, json: async () => ({ sentence: 'EJEMPLO FICTICIO. Respuesta antigua que debe descartarse.' }) });
+      else request.reject(new Error('test-only-late-provider-detail'));
+      await pending;
+      assert.equal($('ai-result').textContent, '', `${action}/${outcome}: no recupera contenido retirado`);
+      assert.equal($('ask-ai').disabled, true);
+      assert.equal($('ai-consent').checked, false);
+      assert.equal($('draft').value, action === 'consent' ? draft : '');
+      assert.equal($('draft-section').hidden, action !== 'consent');
+      assert.equal($('reviewed').checked, action === 'consent');
+      assert.equal($('download').disabled, action !== 'consent');
+      assert.deepEqual(['description', 'locality', 'provider'].map(id => $(id).value), snapshot);
+      assert.equal($('message').textContent, message);
+      assert.equal(aiRequests.length, calls);
+    }
+  }
+});
+
+test('JSON antiguo resuelto tras revocar no altera el resultado ni la espera de una petición nueva', async t => {
+  const { $, fill, aiRequests } = await client(t, { aiAvailable: true });
+  fill();
+  await $('report-form').emit('submit');
+  const draft = $('draft').value;
+  $('ai-consent').checked = true;
+  await $('ai-consent').emit('change');
+  assert.equal($('ask-ai').disabled, false);
+  const first = $('ask-ai').emit('click');
+  const json = deferred();
+  const jsonStarted = deferred();
+  aiRequests[0].resolve({ ok: true, json: () => { jsonStarted.resolve(); return json.promise; } });
+  await jsonStarted.promise;
+  $('ai-consent').checked = false;
+  await $('ai-consent').emit('change');
+  assert.equal(aiRequests[0].options.signal.aborted, true);
+  $('ai-consent').checked = true;
+  await $('ai-consent').emit('change');
+  assert.equal($('ask-ai').disabled, false);
+  const second = $('ask-ai').emit('click');
+  assert.equal(aiRequests.length, 2);
+  const waiting = $('ai-result').textContent;
+  json.resolve({ sentence: 'EJEMPLO FICTICIO. Respuesta antigua que debe descartarse.' });
+  await first;
+  assert.equal($('ai-result').textContent, waiting);
+  assert.equal($('ask-ai').disabled, true, 'el finally antiguo no libera la petición nueva');
+  assert.equal(aiRequests[1].options.signal.aborted, false);
+  const sentence = 'EJEMPLO FICTICIO. Respuesta actual para revisar el servicio.';
+  aiRequests[1].resolve({ ok: true, json: async () => ({ sentence }) });
+  await second;
+  assert.equal($('ai-result').textContent, `Sugerencia sin verificar: ${sentence}`);
+  assert.equal($('ask-ai').disabled, false);
+  assert.equal($('draft').value, draft);
+  assert.equal(aiRequests.length, 2);
+});
+
+test('fallos de ayuda conservan el borrador y solo se recuperan con otra petición explícita', async t => {
+  const { $, fill, aiRequests, downloads } = await client(t, { aiAvailable: true });
+  fill();
+  await $('report-form').emit('submit');
+  const draft = $('draft').value;
+  $('reviewed').checked = true;
+  await $('reviewed').emit('change');
+  $('ai-consent').checked = true;
+  await $('ai-consent').emit('change');
+  for (const outcome of ['reject', 'http']) {
+    assert.equal($('ask-ai').disabled, false);
+    const pending = $('ask-ai').emit('click');
+    const calls = aiRequests.length;
+    if (outcome === 'reject') aiRequests.at(-1).reject(new Error('test-only-provider-detail'));
+    else aiRequests.at(-1).resolve({ ok: false, json: async () => ({ error: 'test-only-provider-detail' }) });
+    await pending;
+    assert.equal($('ai-result').textContent, 'No se pudo obtener la sugerencia. Puedes continuar con el borrador local.');
+    assert.equal($('ask-ai').disabled, false);
+    assert.equal($('draft').value, draft);
+    assert.equal($('reviewed').checked, true);
+    assert.equal($('download').disabled, false);
+    assert.equal(aiRequests.length, calls, 'no reintenta por sí solo');
+  }
+  const pending = $('ask-ai').emit('click');
+  assert.equal(aiRequests.length, 3);
+  const sentence = 'EJEMPLO FICTICIO. Solicito revisar el servicio descrito.';
+  aiRequests.at(-1).resolve({ ok: true, json: async () => ({ sentence }) });
+  await pending;
+  assert.equal($('ai-result').textContent, `Sugerencia sin verificar: ${sentence}`);
+  assert.equal($('draft').value, draft);
+  assert.equal($('ask-ai').disabled, false);
+  assert.equal(aiRequests.length, 3);
+  assert.equal(downloads.blobs.length, 0);
 });

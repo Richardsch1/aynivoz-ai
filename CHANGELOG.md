@@ -1,5 +1,9 @@
 # Historial
 
+## 2026-11-17
+
+Se añaden pruebas del cliente con respuestas de IA diferidas para verificar los controles existentes de consentimiento, cancelación, descarte de respuestas tardías y recuperación explícita. Se comprueba que solo se envían tipo, alcance y consentimiento, y que una respuesta anterior no altera la solicitud nueva ni el borrador revisable.
+
 ## 2026-11-16
 
 El adaptador de Claude descarta respuestas con bytes UTF-8 inválidos en lugar de aceptar frases con caracteres sustituidos por daños en la codificación. Conserva UTF-8 válido dividido entre fragmentos y BOM inicial, el error genérico, el borrador local y la revisión humana, sin reintentos automáticos.

@@ -2,6 +2,22 @@
 
 Este registro describe cambios y comprobaciones realmente realizados. No representa uso comunitario ni resultados de impacto.
 
+## 2026-11-17 · Pruebas de consentimiento y respuestas tardías
+
+**Alcance:** se cerró el pendiente de cobertura del cliente registrado el 16 de noviembre. Los controles de cancelación y descarte ya existían; no se detectó ni se atribuye una fuga previa. Se añadieron cuatro grupos de pruebas con configuración de IA explícita solo en el simulador y respuestas diferidas controladas, sin modificar el código de la aplicación.
+
+**Comprobaciones:** envío exacto de tipo, alcance y consentimiento, excluyendo texto libre y prestador; botón bloqueado durante la espera; conservación del borrador y la revisión humana; aborto al revocar consentimiento, editar el reporte, cargar el ejemplo, borrar o salir; descarte de resoluciones y errores tardíos aunque el simulador ignore el aborto. Se intercalan la lectura JSON de una petición anterior, la revocación y una petición nueva para comprobar que la respuesta anterior no sustituye el resultado ni habilita el botón de la nueva. Los fallos de red y HTTP muestran el aviso genérico, conservan el flujo local y requieren otro intento explícito, sin reintentos automáticos.
+
+**Verificación local:** Windows, Node v24.12.0. La suite inicial aprobó 57 de 57 pruebas. Con los cuatro grupos nuevos, las 13 pruebas del cliente y las 61 de la suite completa aprobaron. `npm run check`, `npm test`, `git diff --check` y `npm audit --omit=dev --audit-level=high` terminaron sin errores; la auditoría no reportó vulnerabilidades. El simulador reemplaza `fetch` completo, usa promesas controladas sin esperas temporizadas y restaura los globales. No se usaron datos reales, credenciales ni llamadas a Anthropic.
+
+**Utilidad de las pruebas:** en una copia temporal aislada, la suite del cliente pasó con el código original y falló al retirar por separado el aborto, la protección de respuestas tardías, la de errores tardíos o la del cierre de una petición anterior, y al añadir la descripción al cuerpo enviado. Las cinco alteraciones fueron detectadas por los grupos nuevos. La copia y sus archivos se retiraron; esas alteraciones nunca se aplicaron al código versionado.
+
+**Límites:** estas simulaciones verifican el estado y las peticiones construidas por el cliente; no confirman cancelación efectiva del procesamiento en el proveedor, eliminación de datos ya transmitidos ni ausencia de costos de una petición ya iniciada. No se realizó un nuevo recorrido en navegador ni una evaluación con lectores de pantalla. El resultado remoto debe consultarse en [GitHub Actions](https://github.com/Richardsch1/aynivoz-ai/actions); los resultados locales no acreditan por sí solos CI en Node 22 y 24.
+
+**Contraste de fuentes:** las cuatro fuentes primarias del [catálogo](FUENTES.md) devolvieron HTTP 418 al abrirlas. El contenido oficial indexado consultado coincidió con números, ámbitos y propósitos registrados, pero su rastreo no acredita vigencia ni atención en tiempo real. Se conservan los contactos y las fechas existentes, sin renovar la verificación global ni considerar esos bloqueos prueba de enlaces rotos.
+
+**Próximos pasos:** reproducir estos recorridos de cancelación en un navegador con proveedor local simulado, continuar las pruebas de lectores de pantalla y otros navegadores y comprobar el guardado de descargas. Siguen pendientes la validación comunitaria y una eventual prueba con una cuenta real de Anthropic bajo consentimiento y presupuesto propios. No se atribuye adopción ni impacto validado.
+
 ## 2026-11-16 · Rechazo de respuestas con UTF-8 inválido
 
 **Problema reproducido:** una respuesta JSON simulada del proveedor con un byte inicial UTF-8 sin continuación dentro de una palabra se aceptó con un carácter de reemplazo. El decodificador predeterminado reparaba silenciosamente los bytes inválidos antes de analizar el JSON. También se aceptó un metadato simulado con bytes inválidos y la API devolvió HTTP 200. No se observó una fuga de datos, un incidente con usuarios ni una respuesta dañada de Anthropic real.
