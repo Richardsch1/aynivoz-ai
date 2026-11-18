@@ -31,11 +31,14 @@ export function claudeConfigured(env) {
   return env.AI_ENABLED === 'true' && Boolean(env.ANTHROPIC_API_KEY?.trim()) && Boolean(env.CLAUDE_MODEL?.trim());
 }
 
-export async function suggestSentence(input, { env = process.env, fetchImpl = fetch } = {}) {
+export async function suggestSentence(input, { env = process.env, fetchImpl = fetch, signal } = {}) {
   const safe = validateAiRequest(input);
   if (!claudeConfigured(env)) throw new Error('AI_UNAVAILABLE');
+  const timeout = AbortSignal.timeout(12000);
+  const requestSignal = signal ? AbortSignal.any([signal, timeout]) : timeout;
+  requestSignal.throwIfAborted();
   const response = await fetchImpl('https://api.anthropic.com/v1/messages', {
-    method: 'POST', redirect: 'error', signal: AbortSignal.timeout(12000),
+    method: 'POST', redirect: 'error', signal: requestSignal,
     headers: { 'content-type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({
       model: env.CLAUDE_MODEL, max_tokens: 200,

@@ -2,6 +2,22 @@
 
 Este registro describe cambios y comprobaciones realmente realizados. No representa uso comunitario ni resultados de impacto.
 
+## 2026-11-18 · Cancelación del proveedor tras desconexión
+
+**Problema reproducido:** al destruir una petición HTTP local después de iniciar un proveedor simulado, la respuesta del servidor se cerró pero la señal del proveedor siguió sin abortarse. La operación abandonada continuó pendiente y otra petición recibió HTTP 429 por concurrencia. Se liberó el simulador para terminar la reproducción. No se hicieron llamadas reales a Anthropic ni se midieron cargos o ahorro.
+
+**Cambio:** cada operación del proveedor tiene un controlador que recibe el cierre prematuro de la respuesta HTTP. El adaptador combina esa señal con el plazo existente de doce segundos y rechaza señales ya abortadas antes de llamar al proveedor. Se comprueba si la conexión ya está destruida antes de iniciar la operación y se evita escribir sobre respuestas destruidas. El listener se retira al terminar. El intento conserva su cuota y la plaza de concurrencia se libera únicamente al finalizar la operación; no se permite un trabajo adicional mientras la cancelación aún no ha terminado.
+
+**Verificación local:** Windows, Node v24.12.0. La suite inicial aprobó 61 de 61 pruebas. Con el código anterior, dos grupos nuevos fallaron por aceptar una señal preabortada y no abortar al cerrar el cliente; el caso de cierre normal ya pasó. Tras la corrección, las 34 pruebas del servidor y las 64 de la suite completa aprobaron. Se comprobaron señal externa, señal de plazo y configuración de doce segundos sin esperar el reloj; conexión HTTP real sobre loopback con proveedor simulado; rechazo HTTP 429 mientras este sigue pendiente pese al aborto; recuperación posterior y conservación de los cinco intentos restantes antes de agotar la cuota; ausencia de reintentos y página local disponible. Completar normalmente el cuerpo de entrada y la respuesta no aborta al proveedor. Las nuevas pruebas tienen un plazo máximo para que una regresión no deje CI esperando indefinidamente.
+
+`npm run check`, `npm test`, `git diff --check` y `npm audit --omit=dev --audit-level=high` terminaron sin errores; la auditoría no reportó vulnerabilidades. Solo se usaron datos ficticios y credenciales de prueba sin validez. No se realizó un nuevo recorrido en navegador ni se activó una API real. El resultado remoto debe consultarse en [GitHub Actions](https://github.com/Richardsch1/aynivoz-ai/actions); los resultados locales no acreditan por sí solos CI en Node 22 y 24.
+
+**Referencias técnicas:** [cierre de respuestas HTTP en Node 22](https://nodejs.org/docs/latest-v22.x/api/http.html#event-close_2) y [composición de señales de aborto](https://nodejs.org/docs/latest-v22.x/api/globals.html#static-method-abortsignalanysignals), consultadas el 18 de noviembre de 2026. Se observa la respuesta porque el evento de cierre del cuerpo de entrada también ocurre al completarlo normalmente. El aborto de transporte no demuestra que el proveedor haya detenido generación, eliminado datos o evitado cargos ya iniciados.
+
+**Contraste de fuentes:** las cuatro fuentes primarias del [catálogo](FUENTES.md) devolvieron HTTP 418 al abrirlas. El texto oficial indexado consultado coincidió con contactos, ámbitos y propósitos; sus rastreos de tres a cuatro meses no acreditan disponibilidad actual. Se conservan datos y fechas sin renovar la verificación global ni interpretar esos bloqueos como prueba de enlaces rotos.
+
+**Próximos pasos:** comprobar el recorrido completo de cancelación desde navegador con un proveedor local simulado, continuar las pruebas con lectores de pantalla y otros navegadores y comprobar el guardado de descargas. Siguen pendientes la validación comunitaria y una eventual prueba con una cuenta real de Anthropic bajo consentimiento y presupuesto propios. No se atribuye adopción ni impacto validado.
+
 ## 2026-11-17 · Pruebas de consentimiento y respuestas tardías
 
 **Alcance:** se cerró el pendiente de cobertura del cliente registrado el 16 de noviembre. Los controles de cancelación y descarte ya existían; no se detectó ni se atribuye una fuga previa. Se añadieron cuatro grupos de pruebas con configuración de IA explícita solo en el simulador y respuestas diferidas controladas, sin modificar el código de la aplicación.

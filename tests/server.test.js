@@ -8,13 +8,19 @@ const input = { category: 'sin-agua', scope: 'comunidad', consent: true };
 const env = { AI_ENABLED: 'true', ANTHROPIC_API_KEY: 'test-only-placeholder', CLAUDE_MODEL: 'test-model' };
 const sentence = 'Solicito que se verifique la interrupción del servicio y se informe la atención que corresponda.';
 
+function deferred() {
+  let resolve;
+  const promise = new Promise(done => { resolve = done; });
+  return { promise, resolve };
+}
+
 async function instance(t, options = {}) {
   const server = createApp({ env: {}, ...options });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   t.after(() => new Promise(resolve => { server.closeAllConnections(); server.close(resolve); }));
   const url = `http://127.0.0.1:${server.address().port}`;
   const post = (body, headers = {}) => fetch(`${url}/api/assist`, { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: url, ...headers }, body: typeof body === 'string' ? body : JSON.stringify(body) });
-  return { url, post };
+  return { server, url, post };
 }
 
 const providerByteLimit = 32 * 1024;
@@ -415,6 +421,131 @@ test('límite global de costo y recuperación después de la ventana', async t =
   assert.equal((await post(input)).status, 429);
   time += 60001;
   assert.equal((await post(input)).status, 200);
+});
+test('adaptador admite señal externa, rechaza preaborto y conserva el plazo de espera', { timeout: 10000 }, async t => {
+  const timeouts = [];
+  t.mock.method(AbortSignal, 'timeout', milliseconds => {
+    assert.equal(milliseconds, 12000);
+    const controller = new AbortController();
+    timeouts.push(controller);
+    return controller.signal;
+  });
+  const response = () => Response.json({ stop_reason: 'end_turn', content: [{ type: 'text', text: sentence }] });
+  assert.equal(await suggestSentence(input, { env, fetchImpl: async (_url, options) => {
+    assert.ok(options.signal instanceof AbortSignal);
+    assert.equal(options.signal.aborted, false);
+    return response();
+  } }), sentence);
+  const cancelled = new AbortController();
+  cancelled.abort();
+  let unexpectedCalls = 0;
+  await assert.rejects(suggestSentence(input, { env, signal: cancelled.signal, fetchImpl: async () => {
+    unexpectedCalls += 1;
+    return response();
+  } }));
+  assert.equal(unexpectedCalls, 0);
+  for (const source of ['external', 'timeout']) {
+    const external = new AbortController();
+    const began = deferred();
+    const release = deferred();
+    let providerSignal;
+    const pending = suggestSentence(input, { env, signal: external.signal, fetchImpl: async (_url, options) => {
+      providerSignal = options.signal;
+      began.resolve();
+      await release.promise;
+      providerSignal.throwIfAborted();
+      return response();
+    } });
+    const rejected = assert.rejects(pending);
+    await began.promise;
+    (source === 'external' ? external : timeouts.at(-1)).abort();
+    try { assert.equal(providerSignal.aborted, true, source); }
+    finally { release.resolve(); await rejected; }
+  }
+});
+test('desconectar cliente cancela el proveedor sin solapar trabajo ni reembolsar la cuota', { timeout: 10000 }, async t => {
+  const began = deferred();
+  const release = deferred();
+  const settled = deferred();
+  const disconnected = deferred();
+  let providerSignal;
+  let calls = 0;
+  const { server, url, post } = await instance(t, { env, now: () => 100000, fetchImpl: async (_url, options) => {
+    calls += 1;
+    if (calls === 1) {
+      providerSignal = options.signal;
+      began.resolve();
+      try {
+        // Model a provider that observes cancellation only after releasing its work.
+        await release.promise;
+        providerSignal.throwIfAborted();
+      } finally { settled.resolve(); }
+    }
+    return Response.json({ stop_reason: 'end_turn', content: [{ type: 'text', text: sentence }] });
+  } });
+  server.once('request', (_req, res) => res.once('close', disconnected.resolve));
+  const request = http.request(url + '/api/assist', { method: 'POST', headers: { origin: url, 'content-type': 'application/json' } });
+  request.on('error', () => {});
+  request.end(JSON.stringify(input));
+  await began.promise;
+  request.destroy();
+  await disconnected.promise;
+  try {
+    assert.equal(providerSignal.aborted, true);
+    assert.equal(calls, 1);
+    const blocked = await post(input);
+    assert.equal(blocked.status, 429, 'no admite otro trabajo mientras el proveedor no termina');
+    await blocked.arrayBuffer();
+    assert.equal(calls, 1);
+    release.resolve();
+    await settled.promise;
+    for (let i = 0; i < 5; i += 1) {
+      const recovered = await post(input);
+      assert.equal(recovered.status, 200);
+      assert.deepEqual(await recovered.json(), { sentence, reviewRequired: true });
+    }
+    const exhausted = await post(input);
+    assert.equal(exhausted.status, 429, 'la petición cancelada conserva su intento consumido');
+    await exhausted.arrayBuffer();
+    assert.equal(calls, 6);
+    const page = await fetch(url);
+    assert.equal(page.status, 200);
+    assert.match(await page.text(), /id="report-form"/);
+  } finally {
+    release.resolve();
+    request.destroy();
+    await settled.promise;
+  }
+});
+test('terminar normalmente la petición y la respuesta no cancela al proveedor', { timeout: 10000 }, async t => {
+  const began = deferred();
+  const release = deferred();
+  const requestCompleted = deferred();
+  const responseCompleted = deferred();
+  let providerSignal;
+  const { server, post } = await instance(t, { env, fetchImpl: async (_url, options) => {
+    providerSignal = options.signal;
+    began.resolve();
+    await release.promise;
+    providerSignal.throwIfAborted();
+    return Response.json({ stop_reason: 'end_turn', content: [{ type: 'text', text: sentence }] });
+  } });
+  server.once('request', (req, res) => {
+    req.once('close', requestCompleted.resolve);
+    res.once('close', responseCompleted.resolve);
+  });
+  const pending = post(input);
+  try {
+    await began.promise;
+    await requestCompleted.promise;
+    assert.equal(providerSignal.aborted, false, 'consumir el cuerpo de entrada no cancela la respuesta pendiente');
+    release.resolve();
+    const response = await pending;
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { sentence, reviewRequired: true });
+    await responseCompleted.promise;
+    assert.equal(providerSignal.aborted, false, 'cerrar una respuesta completa no es una cancelación');
+  } finally { release.resolve(); await pending; }
 });
 test('solo permite una petición al proveedor a la vez', async t => {
   let release;

@@ -1,5 +1,9 @@
 # Historial
 
+## 2026-11-18
+
+El servidor solicita cancelar la ayuda opcional al detectar que el cliente cerró la conexión antes de completar la respuesta. La señal se combina con el plazo existente de doce segundos. El intento sigue contando para la cuota y la concurrencia se libera cuando termina la operación; no se garantiza detener procesamiento o cargos ya iniciados en el proveedor.
+
 ## 2026-11-17
 
 Se añaden pruebas del cliente con respuestas de IA diferidas para verificar los controles existentes de consentimiento, cancelación, descarte de respuestas tardías y recuperación explícita. Se comprueba que solo se envían tipo, alcance y consentimiento, y que una respuesta anterior no altera la solicitud nueva ni el borrador revisable.

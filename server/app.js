@@ -23,6 +23,7 @@ export function createApp({ env = process.env, fetchImpl = fetch, now = Date.now
       'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
     };
     const send = (status, body, type = 'application/json; charset=utf-8') => {
+      if (res.destroyed) return;
       res.writeHead(status, { ...headers, 'Content-Type': type });
       res.end(type.startsWith('application/json') ? JSON.stringify(body) : body);
     };
@@ -53,13 +54,18 @@ export function createApp({ env = process.env, fetchImpl = fetch, now = Date.now
         if (!claudeConfigured(env)) return send(503, { error: 'Claude no está habilitado. Puedes usar el borrador local.' });
         if (now() - windowStart >= 60000) { windowStart = now(); used = 0; }
         if (used >= 6 || active >= 1) return send(429, { error: 'Límite temporal alcanzado. Usa el borrador local o espera un minuto.' });
+        if (res.destroyed) return;
+        const providerController = new AbortController();
+        // IncomingMessage.close also fires after a normal request body; watch the response instead.
+        const cancelProvider = () => { if (!res.writableEnded) providerController.abort(); };
+        res.once('close', cancelProvider);
         used += 1;
         active += 1;
         try {
-          return send(200, { sentence: await suggestSentence(data, { env, fetchImpl }), reviewRequired: true });
+          return send(200, { sentence: await suggestSentence(data, { env, fetchImpl, signal: providerController.signal }), reviewRequired: true });
         } catch {
           return send(502, { error: 'No se pudo obtener una sugerencia segura. El borrador local sigue disponible.' });
-        } finally { active -= 1; }
+        } finally { res.off('close', cancelProvider); active -= 1; }
       }
       return send(404, { error: 'Ruta no disponible.' });
     } catch (error) {
