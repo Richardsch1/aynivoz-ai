@@ -547,6 +547,73 @@ test('terminar normalmente la petición y la respuesta no cancela al proveedor',
     assert.equal(providerSignal.aborted, false, 'cerrar una respuesta completa no es una cancelación');
   } finally { release.resolve(); await pending; }
 });
+test('desconectar durante la lectura HTTP real cierra el proveedor y permite recuperarse', { timeout: 10000 }, async t => {
+  const nativeFetch = fetch;
+  const fragmentRead = deferred();
+  const providerClosed = deferred();
+  const clientClosed = deferred();
+  let providerCalls = 0;
+  let fetchCalls = 0;
+  let providerSignal;
+  let providerEnded;
+  let clientResponse = '';
+  const provider = http.createServer((req, res) => {
+    req.resume();
+    providerCalls += 1;
+    res.writeHead(200, { 'content-type': 'application/json' });
+    if (providerCalls === 1) {
+      res.once('close', () => { providerEnded = res.writableEnded; providerClosed.resolve(); });
+      res.write(`{"stop_reason":"end_turn","padding":"${env.ANTHROPIC_API_KEY}","content":[{"type":"text","text":"EJEMPLO FICTICIO. Frase privada incompleta`);
+    } else {
+      res.end(JSON.stringify({ stop_reason: 'end_turn', content: [{ type: 'text', text: sentence }] }));
+    }
+  });
+  await new Promise(resolve => provider.listen(0, '127.0.0.1', resolve));
+  t.after(() => new Promise(resolve => { provider.closeAllConnections(); provider.close(resolve); }));
+  const providerUrl = `http://127.0.0.1:${provider.address().port}`;
+  const { url, post } = await instance(t, { env, fetchImpl: async (destination, options) => {
+    assert.equal(destination, 'https://api.anthropic.com/v1/messages');
+    assert.equal(options.headers['x-api-key'], env.ANTHROPIC_API_KEY);
+    fetchCalls += 1;
+    const response = await nativeFetch(providerUrl, options);
+    if (fetchCalls === 1) {
+      providerSignal = options.signal;
+      const iterate = response.body[Symbol.asyncIterator].bind(response.body);
+      // Observe actual body consumption without replacing native fetch or its cancellation.
+      response.body[Symbol.asyncIterator] = async function* () {
+        for await (const chunk of iterate()) {
+          yield chunk;
+          fragmentRead.resolve();
+        }
+      };
+    }
+    return response;
+  } });
+  const request = http.request(url + '/api/assist', { method: 'POST', headers: { origin: url, 'content-type': 'application/json' } }, response => {
+    response.on('data', chunk => { clientResponse += chunk; });
+  });
+  request.on('error', () => {});
+  request.once('close', clientClosed.resolve);
+  t.after(() => request.destroy());
+  request.end(JSON.stringify(input));
+  await fragmentRead.promise;
+  assert.equal(providerSignal.aborted, false, 'el cuerpo nativo ya se lee y aún está pendiente');
+  assert.equal(providerCalls, 1);
+  request.destroy();
+  await Promise.all([clientClosed.promise, providerClosed.promise]);
+  assert.equal(providerSignal.aborted, true);
+  assert.equal(providerEnded, false, 'el proveedor pierde la conexión antes de completar su cuerpo');
+  assert.equal(clientResponse, '', 'no devuelve el fragmento privado ni la clave ficticia');
+  const page = await fetch(url);
+  assert.equal(page.status, 200);
+  assert.match(await page.text(), /id="report-form"/);
+  const recovered = await post(input);
+  assert.equal(recovered.status, 200);
+  assert.deepEqual(await recovered.json(), { sentence, reviewRequired: true });
+  assert.equal(fetchCalls, 2);
+  assert.equal(providerCalls, 2, 'una llamada por intento, sin reintentos');
+});
+
 test('solo permite una petición al proveedor a la vez', async t => {
   let release;
   let started;

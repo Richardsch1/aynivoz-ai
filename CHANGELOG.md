@@ -1,5 +1,9 @@
 # Historial
 
+## 2026-11-19
+
+Se amplía la verificación de cancelación durante la lectura del cuerpo de una respuesta, usando transporte HTTP real con un proveedor falso en loopback. Se documenta el recorrido comprobado en navegador con el ejemplo ficticio: retirada del consentimiento, recuperación explícita y borrado durante una petición pendiente. Estas comprobaciones no validan procesamiento ni cargos en Anthropic.
+
 ## 2026-11-18
 
 El servidor solicita cancelar la ayuda opcional al detectar que el cliente cerró la conexión antes de completar la respuesta. La señal se combina con el plazo existente de doce segundos. El intento sigue contando para la cuota y la concurrencia se libera cuando termina la operación; no se garantiza detener procesamiento o cargos ya iniciados en el proveedor.

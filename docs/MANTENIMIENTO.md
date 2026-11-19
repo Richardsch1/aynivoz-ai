@@ -2,6 +2,22 @@
 
 Este registro describe cambios y comprobaciones realmente realizados. No representa uso comunitario ni resultados de impacto.
 
+## 2026-11-19 · Cancelación comprobada en navegador y transporte local
+
+**Alcance:** se amplía la verificación de la cancelación implementada el 18 de noviembre, sin atribuir un fallo nuevo del código principal. Se confirmó que el commit `86167e8ed8800c292951b1b55e11146325a811e6` estaba publicado y que su [CI en Node 22 y 24](https://github.com/Richardsch1/aynivoz-ai/actions/runs/44419077846) había terminado correctamente.
+
+**Nueva prueba de transporte:** un proveedor HTTP falso en loopback entrega cabeceras y un fragmento JSON incompleto y mantiene abierto el cuerpo. El adaptador usa `fetch` nativo dirigido exclusivamente a ese proveedor de prueba. Una barrera confirma la lectura efectiva del fragmento antes de cerrar el cliente de la API. Se comprueban la señal abortada, el cierre prematuro de la conexión del proveedor y la ausencia de respuesta al cliente en ese recorrido abandonado. La página local sigue disponible y la siguiente petición explícita devuelve una frase válida con revisión requerida, con exactamente una llamada por intento. Ambos servidores y la petición tienen limpieza registrada y la prueba tiene un plazo máximo de diez segundos.
+
+**Comprobación en navegador integrado:** se inició una instancia temporal local con entorno y proveedor simulados explícitos, sin leer `.env` ni usar una clave real. Con el ejemplo ficticio se generó y revisó el borrador. Retirar el consentimiento durante la primera petición vació el resultado de IA y bloqueó el botón opcional, conservando exactamente el borrador, su revisión y la descarga habilitada. El proveedor simulado registró `AbortError`, sin esperar el vencimiento del plazo. Autorizar de nuevo y pulsar el botón produjo una frase rotulada como ficticia y local, separada del borrador. Una tercera petición pendiente se canceló al pulsar «Borrar todo»: quedaron vacíos zona, descripción y borrador, con borrador oculto, consentimiento y revisión retirados y ambos botones bloqueados. El simulador registró otra cancelación. Se guardó una captura fuera del repositorio y se cerraron la pestaña y el servidor propios.
+
+**Verificación local:** Windows, Node v24.12.0. La suite inicial aprobó 64 de 64 pruebas. Con la prueba nueva, las 35 pruebas del servidor y las 65 de la suite completa aprobaron. `npm run check`, `npm test`, `git diff --check` y `npm audit --omit=dev --audit-level=high` terminaron sin errores; la auditoría no reportó vulnerabilidades. No se añadieron dependencias ni se cambió el comportamiento de la aplicación. El resultado remoto de esta ampliación debe consultarse en [GitHub Actions](https://github.com/Richardsch1/aynivoz-ai/actions); las comprobaciones locales no acreditan por sí solas CI en Node 22 y 24.
+
+**Límites:** el recorrido verifica la interacción del navegador, el cliente y el servidor con un proveedor simulado. No acredita detener una generación real de Anthropic, borrar datos transmitidos ni evitar cargos. No se presentaron solicitudes a entidades, no se guardó una descarga real y no se evaluaron lectores de pantalla ni otros navegadores.
+
+**Contraste de fuentes:** las cuatro fuentes primarias del [catálogo](FUENTES.md) devolvieron HTTP 418 al abrirlas. Su texto oficial indexado consultado coincidió con contactos y propósitos; los rastreos indicaban tres a cuatro meses. No se confirmó disponibilidad actual y se conservan contactos y fechas, sin renovar la verificación global ni interpretar esos bloqueos como prueba de enlaces rotos.
+
+**Próximos pasos:** continuar la evaluación en otros navegadores y con lectores de pantalla y comprobar el guardado de descargas. La validación comunitaria sigue pendiente. Una eventual prueba con una cuenta real de Anthropic requiere consentimiento y presupuesto propios; no se atribuye adopción ni impacto validado.
+
 ## 2026-11-18 · Cancelación del proveedor tras desconexión
 
 **Problema reproducido:** al destruir una petición HTTP local después de iniciar un proveedor simulado, la respuesta del servidor se cerró pero la señal del proveedor siguió sin abortarse. La operación abandonada continuó pendiente y otra petición recibió HTTP 429 por concurrencia. Se liberó el simulador para terminar la reproducción. No se hicieron llamadas reales a Anthropic ni se midieron cargos o ahorro.
