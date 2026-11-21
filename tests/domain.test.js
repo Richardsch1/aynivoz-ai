@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateReport, createDraft, aiPayload, assertReviewedDraft, ValidationError } from '../public/domain.js';
+import { validateReport, createDraft, aiPayload, assertReviewedDraft, ValidationError, containsSensitivePattern } from '../public/domain.js';
 import { CHANNELS, channelsFor, catalogNeedsReview } from '../public/catalog.js';
 
 const example = { category: 'sin-agua', scope: 'comunidad', provider: 'desconocido', locality: 'Distrito ficticio', description: 'EJEMPLO FICTICIO. Se observa falta de agua en varias viviendas de la zona.', privacy: true };
@@ -52,6 +52,33 @@ test('patrones sensibles identifican zona o descripción sin copiar su contenido
     });
   }
 });
+test('rechaza correos Unicode en ambos campos sin eco y conserva la prosa española', () => {
+  const emails = [
+    'persona@ejemplo.invalid', 'pru\u00e9ba@ejemplo.invalid',
+    'prueb\u00e1@ejemplo.invalid', 'prueba@dom\u00ednio.invalid',
+    '\u8bd5@ejemplo.invalid', 'prueb\u0301@ejemplo.invalid',
+    '\u0660@ejemplo.invalid', '\u{10400}@ejemplo.invalid',
+  ];
+  for (const email of new Set(emails.flatMap(value => [value.normalize('NFC'), value.normalize('NFD')]))) {
+    assert.equal(containsSensitivePattern(email), true, JSON.stringify(email));
+    for (const field of ['locality', 'description']) {
+      assert.throws(() => validateReport({ ...example, [field]: `EJEMPLO FICTICIO. Correo ${email}.` }), error => {
+        assert.ok(error instanceof ValidationError);
+        assert.equal(error.field, field);
+        assert.match(error.message, /Elimina.*correos/);
+        assert.ok(!error.message.includes('@'));
+        return true;
+      }, `${field}: ${JSON.stringify(email)}`);
+    }
+  }
+  const locality = 'Zona ficticia de San Jos\u00e9';
+  const description = 'EJEMPLO FICTICIO. Solicito revisar ma\u00f1ana la presi\u00f3n y la atenci\u00f3n de agua.';
+  assert.equal(containsSensitivePattern(`${locality} ${description}`), false);
+  const report = validateReport({ ...example, locality: locality.normalize('NFD'), description: description.normalize('NFD') });
+  assert.equal(report.locality, locality);
+  assert.equal(report.description, description);
+});
+
 test('patrón repartido entre zona y descripción sigue rechazado sin atribuirlo a un campo', () => {
   assert.throws(() => validateReport({
     ...example, locality: 'Zona ficticia 000', description: '0000: EJEMPLO FICTICIO. Se observa una interrupción de agua.',

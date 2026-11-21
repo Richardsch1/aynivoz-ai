@@ -301,6 +301,49 @@ test('rechaza respuestas con enlaces, números, HTML, vacías o excesivas', asyn
     await assert.rejects(suggestSentence(input, { env, fetchImpl: async () => Response.json({ stop_reason: 'end_turn', content: [{ type: 'text', text: output }] }) }));
   }
 });
+test('adaptador rechaza correos Unicode sin bloquear una frase española sin contacto', async () => {
+  const emails = [
+    'prueb\u00e1@ejemplo.invalid', 'prueba@dom\u00ednio.invalid',
+    '\u8bd5@ejemplo.invalid', 'prueb\u0301@ejemplo.invalid', '\u{10400}@ejemplo.invalid',
+  ];
+  for (const email of new Set(emails.flatMap(value => [value.normalize('NFC'), value.normalize('NFD')]))) {
+    await assert.rejects(suggestSentence(input, {
+      env, fetchImpl: async () => Response.json({
+        stop_reason: 'end_turn', content: [{ type: 'text', text: `Solicito revisar el servicio y contactar ${email}.` }],
+      }),
+    }), { message: 'AI_UNSAFE_OUTPUT' }, JSON.stringify(email));
+  }
+  const spanish = 'Solicito revisar ma\u00f1ana la presi\u00f3n y la atenci\u00f3n de agua en la zona ficticia.';
+  assert.equal(await suggestSentence(input, {
+    env, fetchImpl: async () => Response.json({ stop_reason: 'end_turn', content: [{ type: 'text', text: spanish }] }),
+  }), spanish);
+});
+
+test('API rechaza el correo Unicode sin eco y recupera el siguiente intento sin reintentar', async t => {
+  let calls = 0;
+  const unsafe = 'EJEMPLO FICTICIO. Solicito contactar a prueba@dom\u00ednio.invalid.';
+  const { url, post } = await instance(t, { env, fetchImpl: async () => {
+    calls += 1;
+    return Response.json({
+      stop_reason: 'end_turn', content: [{ type: 'text', text: calls === 1 ? unsafe : sentence }],
+      padding: env.ANTHROPIC_API_KEY,
+    });
+  } });
+  const rejected = await post(input);
+  assert.equal(rejected.status, 502);
+  assert.deepEqual(await rejected.json(), {
+    error: 'No se pudo obtener una sugerencia segura. El borrador local sigue disponible.',
+  });
+  assert.equal(calls, 1);
+  const localPage = await fetch(url);
+  assert.equal(localPage.status, 200);
+  assert.match(await localPage.text(), /id="report-form"/);
+  const recovered = await post(input);
+  assert.equal(recovered.status, 200);
+  assert.deepEqual(await recovered.json(), { sentence, reviewRequired: true });
+  assert.equal(calls, 2);
+});
+
 test('rechaza dígitos decimales Unicode aislados en la sugerencia', async () => {
   for (const zero of ['\uff10', '\u0660', '\u06f0', '\u0966', '\u{1d7ce}']) {
     const output = `Solicito revisar el servicio en la zona ficticia ${zero}.`;

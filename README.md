@@ -46,6 +46,8 @@ No ingreses nombres, DNI, teléfonos, direcciones exactas, números de suministr
 
 Los patrones numéricos también reconocen dígitos decimales Unicode, como los de ancho completo y los arábigo-índicos, incluso mezclados con los habituales. No cubren números escritos con letras ni todas las formas de ocultar datos. Las sugerencias de IA con dígitos decimales se descartan; sigue siendo necesario revisar lo que se escribe y descarga.
 
+El detector de correos del reporte y de las sugerencias de IA reconoce letras y marcas combinantes Unicode, también en el dominio. Es una heurística de privacidad: no verifica que una dirección exista ni detecta todos los correos entrecomillados, ofuscados o escritos con espacios. La edición posterior del borrador sigue requiriendo revisión humana.
+
 La descripción y la zona no salen del navegador en el flujo del producto. No se usa almacenamiento persistente, telemetría, cookies, fuentes externas ni formularios remotos. El servidor no recibe reportes: solo entrega la interfaz y, si se habilita Claude, procesa dos opciones categóricas. El navegador, sistema operativo, extensiones y archivos descargados quedan fuera de esa garantía.
 
 Si existe peligro inmediato, no esperes al borrador: busca un lugar seguro y contacta al servicio de emergencia o prestador competente por sus canales oficiales. La aplicación no diagnostica riesgos ni da asesoría legal o sanitaria.

@@ -1,5 +1,9 @@
 # Historial
 
+## 2026-11-21
+
+El detector compartido del reporte y de las sugerencias de IA reconoce patrones de correo con letras y marcas combinantes Unicode, incluidos dominios con acentos. Se mantienen los errores sin reproducir el contenido, el flujo local y la revisión humana. Sigue siendo una heurística limitada; no verifica entregabilidad ni detecta todas las formas de ocultar datos personales.
+
 ## 2026-11-19
 
 Se amplía la verificación de cancelación durante la lectura del cuerpo de una respuesta, usando transporte HTTP real con un proveedor falso en loopback. Se documenta el recorrido comprobado en navegador con el ejemplo ficticio: retirada del consentimiento, recuperación explícita y borrado durante una petición pendiente. Estas comprobaciones no validan procesamiento ni cargos en Anthropic.
