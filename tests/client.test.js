@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { CHANNELS } from '../public/catalog.js';
 
 let instanceId = 0;
 
@@ -248,6 +249,44 @@ test('error sin un campo identificable conserva el resumen y el enlace general',
   assert.equal($('locality').getAttribute('aria-describedby'), 'locality-help');
   assert.equal($('description').getAttribute('aria-describedby'), 'description-help');
   assert.equal($('draft-section').hidden, true);
+});
+
+test('enlaces del catálogo identifican cada canal y conservan destinos al cambiar o limpiar el prestador', async t => {
+  const { $, window } = await client(t);
+  const common = ['prestador', 'sunass', 'sunass-operativo'];
+  const checkChannels = ids => {
+    const articles = $('channel-list').children;
+    assert.equal(articles.length, ids.length);
+    const names = [];
+    for (const [index, id] of ids.entries()) {
+      const channel = CHANNELS.find(item => item.id === id);
+      const links = articles[index].children.filter(child => child.id === 'a');
+      assert.equal(links.length, 1);
+      const link = links[0];
+      const name = link.getAttribute('aria-label') || link.textContent;
+      names.push(name);
+      assert.equal(link.textContent, 'Consultar fuente oficial');
+      assert.ok(name.includes('Consultar fuente oficial'));
+      assert.ok(name.includes(channel.name), `${id}: el enlace identifica su canal`);
+      assert.equal(link.href, channel.url);
+      assert.equal(link.target, '_blank');
+      assert.equal(link.rel, 'noopener noreferrer');
+    }
+    assert.equal(new Set(names).size, ids.length, 'cada enlace tiene un nombre distinto');
+  };
+  checkChannels(common);
+  for (const action of ['provider', 'demo', 'erase', 'pagehide']) {
+    $('provider').value = 'sedapal';
+    await $('report-form').emit('input');
+    checkChannels([...common, 'sedapal']);
+    if (action === 'provider') {
+      $('provider').value = 'otro';
+      await $('report-form').emit('input');
+    } else {
+      await (action === 'pagehide' ? window : $(action)).emit(action === 'pagehide' ? 'pagehide' : 'click');
+    }
+    checkChannels(common);
+  }
 });
 
 test('salir de la página limpia el reporte y restaura canales sin prestador confirmado', async t => {

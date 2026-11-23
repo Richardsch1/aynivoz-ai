@@ -1,5 +1,9 @@
 # Historial
 
+## 2026-11-23
+
+Los enlaces a fuentes oficiales incluyen el nombre del canal en su nombre accesible, para distinguirlos al navegar por una lista de enlaces. Conservan el texto visible, los destinos del catálogo y sus protecciones al abrir otra pestaña. Se comprueba que los nombres y las fuentes sigan asociados al cambiar de prestador o limpiar el reporte.
+
 ## 2026-11-21
 
 El detector compartido del reporte y de las sugerencias de IA reconoce patrones de correo con letras y marcas combinantes Unicode, incluidos dominios con acentos. Se mantienen los errores sin reproducir el contenido, el flujo local y la revisión humana. Sigue siendo una heurística limitada; no verifica entregabilidad ni detecta todas las formas de ocultar datos personales.

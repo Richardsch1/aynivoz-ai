@@ -65,6 +65,7 @@ function renderChannels() {
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
     link.textContent = 'Consultar fuente oficial';
+    link.setAttribute('aria-label', `Consultar fuente oficial: ${channel.name}`);
     const details = document.createElement('details');
     const summary = document.createElement('summary');
     summary.textContent = 'Verificación y límites';
