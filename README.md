@@ -102,6 +102,8 @@ npm audit --omit=dev --audit-level=high
 
 CI ejecuta estas comprobaciones tras cada push o pull request. Las pruebas no contactan a Anthropic ni a entidades públicas. El escáner de patrones de secretos es preventivo, limitado y no certifica la ausencia de secretos o datos personales. Consulta [la arquitectura](docs/ARQUITECTURA.md), [seguridad y privacidad](docs/SEGURIDAD-PRIVACIDAD.md) y [el plan de validación comunitaria](docs/VALIDACION.md).
 
+Para comprobar el archivo guardado por un navegador, sigue la [prueba manual de descarga con datos ficticios](docs/PRUEBAS.md). El mensaje «Descarga iniciada» no acredita por sí solo que el archivo se haya guardado ni que su contenido sea correcto.
+
 ## Contribuir
 
 Consulta [CONTRIBUTING.md](CONTRIBUTING.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) y [SECURITY.md](SECURITY.md). Usa únicamente datos ficticios en pruebas, capturas e issues. Las mejoras de canales requieren fuente oficial y revisión de ámbito; no se aceptan contactos inventados o atribuciones de competencia sin evidencia.

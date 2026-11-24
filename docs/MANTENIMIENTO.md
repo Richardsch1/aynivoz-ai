@@ -2,6 +2,22 @@
 
 Este registro describe cambios y comprobaciones realmente realizados. No representa uso comunitario ni resultados de impacto.
 
+## 2026-11-24 · Archivo de descarga realmente comprobado
+
+**Pendiente cerrado en este entorno:** se verificó el archivo guardado por el navegador integrado en Windows. Las revisiones anteriores solo habían acreditado el inicio de la descarga y pruebas simuladas, como conserva el histórico de [PRUEBAS.md](PRUEBAS.md). No se atribuye un fallo nuevo a la aplicación ni se cambia su comportamiento. Se añade allí un procedimiento manual reproducible para distinguir el mensaje de inicio de una descarga comprobada.
+
+**Recorrido realizado:** se inició una instancia temporal en loopback con entorno vacío explícito, sin leer `.env` ni habilitar Claude. Se cargó el ejemplo ficticio, se confirmó privacidad y se generó el borrador. La descarga estaba bloqueada antes de revisar. Tras confirmar la revisión, se sustituyó el borrador por un texto ficticio breve con tildes, `ñ`, raya y saltos de línea: editar retiró la confirmación y volvió a bloquear la descarga. Al revisar de nuevo y pulsar el botón, la espera del evento de descarga devolvió la ruta del archivo guardado, `aynivoz-borrador-revisado.txt`. No se llamó a Anthropic ni se presentó una solicitud a entidades.
+
+**Archivo comprobado:** se leyeron sus bytes desde el sistema de archivos, sin sustituirlos por un archivo generado aparte. La decodificación UTF-8 estricta y la comparación exacta con el texto ficticio revisado aprobaron. El archivo tenía 212 bytes y SHA-256 `e508f47696312453702bce7cdbaf42448a41ecaea2d224d797ff099b9b8579e6`. Después de pulsar «Borrar todo», los campos quedaron vacíos y el borrador oculto; el archivo siguió existiendo con el mismo tamaño y hash, coherente con el aviso de que las descargas se eliminan desde el dispositivo. Solo contiene texto ficticio y queda fuera del repositorio. Se guardó también una captura local de la interfaz, que no sustituye la comprobación de bytes. Se cerraron la pestaña y el servidor propios.
+
+**Alcance de las pruebas:** el caso añadido es manual y se documenta para poder repetirlo. El resultado corresponde a una descarga en el navegador integrado, no acredita Chrome, Firefox, Safari u otros entornos, ni la lectura con tecnologías de asistencia. Las comprobaciones de accesibilidad y validación comunitaria siguen pendientes. No se usaron datos reales ni se añadió telemetría, dependencias o gastos.
+
+**Comprobaciones locales:** Windows, Node v24.12.0. `npm run check`, `npm test`, `git diff --check` y `npm audit --omit=dev --audit-level=high` terminaron sin errores. Las 69 pruebas automáticas existentes aprobaron y la auditoría no reportó vulnerabilidades. La comprobación manual del archivo descrita arriba es adicional; no se cuenta como una prueba automática nueva.
+
+**Contraste de fuentes:** las cuatro fuentes primarias del [catálogo](FUENTES.md) devolvieron HTTP 418 al abrirlas. El texto oficial indexado coincidió con contactos y propósitos; los rastreos indicaban tres a cuatro meses. Se mantienen contactos y fechas sin renovar la verificación global ni atribuir vigencia actual al índice o considerar los bloqueos prueba de enlaces rotos.
+
+**Próximos pasos:** repetir la comprobación de archivo guardado en otros navegadores y continuar la evaluación con lectores de pantalla y personas usuarias. Una prueba con una cuenta real de Anthropic requiere consentimiento y presupuesto propios. No se atribuye adopción ni impacto validado ni se promete elegibilidad para Claude for OSS. El resultado remoto de esta revisión debe consultarse en [GitHub Actions](https://github.com/Richardsch1/aynivoz-ai/actions).
+
 ## 2026-11-23 · Fuentes distinguibles en una lista de enlaces
 
 **Problema comprobado:** los tres enlaces del catálogo neutral tenían el mismo nombre accesible, «Consultar fuente oficial»; al confirmar Sedapal aparecía un cuarto con ese mismo nombre. Cada tarjeta ya tenía un encabezado descriptivo, pero el nombre del enlace aislado no identificaba el canal. Se confirmó en el DOM simulado y en el árbol de accesibilidad del navegador integrado; no se atribuye una evaluación con lectores de pantalla ni un incumplimiento de WCAG.

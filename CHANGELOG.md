@@ -1,5 +1,9 @@
 # Historial
 
+## 2026-11-24
+
+Se documenta un procedimiento reproducible para comprobar la descarga de un borrador ficticio. En el navegador integrado se verificó el archivo realmente guardado, su nombre y su contenido UTF-8 exacto, además del bloqueo al editar sin revisar de nuevo. Esta revisión amplía la evidencia de funcionamiento; no modifica la aplicación ni acredita otros navegadores.
+
 ## 2026-11-23
 
 Los enlaces a fuentes oficiales incluyen el nombre del canal en su nombre accesible, para distinguirlos al navegar por una lista de enlaces. Conservan el texto visible, los destinos del catálogo y sus protecciones al abrir otra pestaña. Se comprueba que los nombres y las fuentes sigan asociados al cambiar de prestador o limpiar el reporte.
