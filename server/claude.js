@@ -5,6 +5,11 @@ const MAX_RESPONSE_BYTES = 32 * 1024;
 
 async function readProviderJson(response) {
   if (!response.body) throw new Error('AI_UNSAFE_OUTPUT');
+  const mediaType = response.headers.get('content-type')?.split(';')[0].trim().toLowerCase();
+  if (mediaType !== 'application/json') {
+    try { await response.body.cancel(); } catch { /* Reject even if cleanup fails. */ }
+    throw new Error('AI_UNSAFE_OUTPUT');
+  }
   if (Number(response.headers.get('content-length')) > MAX_RESPONSE_BYTES) {
     await response.body.cancel();
     throw new Error('AI_UNSAFE_OUTPUT');

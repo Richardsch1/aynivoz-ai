@@ -55,7 +55,7 @@ function providerStream(chunks, headers = {}, status = 200) {
     },
     cancel() { state.cancelled = true; },
   }, { highWaterMark: 0 });
-  return { response: new Response(body, { headers, status }), state };
+  return { response: new Response(body, { headers: { 'content-type': 'application/json', ...headers }, status }), state };
 }
 
 test('sirve la aplicación con cabeceras restrictivas', async t => {
@@ -185,6 +185,65 @@ test('API descarta una respuesta truncada sin reintentar y admite la siguiente v
   assert.deepEqual(await recovered.json(), { sentence, reviewRequired: true });
   assert.equal(calls, 2);
 });
+test('MIME ajeno o ausente cancela el cuerpo sin leer y conserva el rechazo aunque falle la limpieza', async () => {
+  for (const type of [null, '', 'text/plain', 'text/html; charset=utf-8', 'application/octet-stream', 'application/problem+json', 'application/jsonp', 'application/json, text/plain']) {
+    const { response, state } = providerStream([providerJsonBytes(512)]);
+    if (type === null) response.headers.delete('content-type');
+    else response.headers.set('content-type', type);
+    await assert.rejects(suggestSentence(input, { env, fetchImpl: async () => response }),
+      { message: 'AI_UNSAFE_OUTPUT' }, `tipo: ${JSON.stringify(type)}`);
+    assert.equal(state.pulls, 0);
+    assert.equal(state.cancelled, true);
+  }
+  let pulls = 0;
+  let cancellations = 0;
+  const body = new ReadableStream({
+    pull() { pulls += 1; throw new Error('No debe leerse el cuerpo con tipo ajeno.'); },
+    cancel() { cancellations += 1; throw new Error(env.ANTHROPIC_API_KEY); },
+  }, { highWaterMark: 0 });
+  await assert.rejects(suggestSentence(input, {
+    env, fetchImpl: async () => new Response(body, { headers: { 'content-type': 'text/plain' } }),
+  }), { message: 'AI_UNSAFE_OUTPUT' });
+  assert.equal(pulls, 0);
+  assert.equal(cancellations, 1);
+});
+
+test('MIME JSON admite capitalización y parámetros sin alterar el texto válido', async () => {
+  for (const type of ['application/json', 'Application/JSON', 'APPLICATION/JSON; Charset=UTF-8', 'application/json ; charset=utf-8']) {
+    const { response, state } = providerStream([providerJsonBytes(512)], { 'content-type': type });
+    assert.equal(await suggestSentence(input, { env, fetchImpl: async () => response }), sentence, type);
+    assert.equal(state.pulls, 2);
+    assert.equal(state.cancelled, false);
+  }
+});
+
+test('MIME inválido devuelve error API genérico y permite otro intento sin reintentar', async t => {
+  let calls = 0;
+  const payload = Buffer.from(JSON.stringify({
+    stop_reason: 'end_turn', content: [{ type: 'text', text: sentence }], padding: env.ANTHROPIC_API_KEY,
+  }));
+  const { response, state } = providerStream([payload], { 'content-type': 'text/html' });
+  const { url, post } = await instance(t, { env, fetchImpl: async () => {
+    calls += 1;
+    return calls === 1 ? response : Response.json({ stop_reason: 'end_turn', content: [{ type: 'text', text: sentence }] });
+  } });
+  const rejected = await post(input);
+  assert.equal(rejected.status, 502);
+  assert.deepEqual(await rejected.json(), {
+    error: 'No se pudo obtener una sugerencia segura. El borrador local sigue disponible.',
+  });
+  assert.equal(state.pulls, 0);
+  assert.equal(state.cancelled, true);
+  assert.equal(calls, 1);
+  const localPage = await fetch(url);
+  assert.equal(localPage.status, 200);
+  assert.match(await localPage.text(), /id="report-form"/);
+  const recovered = await post(input);
+  assert.equal(recovered.status, 200);
+  assert.deepEqual(await recovered.json(), { sentence, reviewRequired: true });
+  assert.equal(calls, 2);
+});
+
 test('limita bytes del proveedor por cabecera o lectura y cancela antes del resto', async () => {
   const oversized = providerJsonBytes(providerByteLimit + 1);
   const chunks = [oversized.slice(0, providerByteLimit), oversized.slice(providerByteLimit), new Uint8Array([32])];
