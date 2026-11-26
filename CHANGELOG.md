@@ -1,5 +1,9 @@
 # Historial
 
+## 2026-11-26
+
+La comprobación previa a publicar rechaza archivos de entorno privados incluidos en el índice de Git, aunque falten en el disco, y mantiene permitido el `.env` local ignorado. La plantilla `.env.example` sigue admitida. Una copia sin metadatos Git propios conserva el análisis de archivos y avisa de que no pudo comprobar un índice; un fallo de Git en una copia con metadatos bloquea la comprobación.
+
 ## 2026-11-25
 
 La ayuda opcional exige que una respuesta exitosa del proveedor declare `application/json` antes de leer su cuerpo. Un tipo ausente o inesperado se descarta intentando cancelar el cuerpo; se mantienen el error público genérico, el borrador local y la ausencia de reintentos automáticos. La cabecera correcta no sustituye los límites, la validación del contenido ni la revisión humana.

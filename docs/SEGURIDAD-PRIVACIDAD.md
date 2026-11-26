@@ -38,6 +38,8 @@ Ante un estado HTTP de error del proveedor, el adaptador intenta cancelar su cue
 
 ## Amenazas y controles
 
+La comprobación de publicación consulta únicamente nombres del índice normal mediante `git ls-files --cached -z` cuando encuentra `.git` en la raíz del proyecto, incluido el archivo de metadatos usado por un worktree. Ancla la consulta a esa copia y retira las variables `GIT_DIR`, `GIT_WORK_TREE`, `GIT_COMMON_DIR` y `GIT_INDEX_FILE` solo del entorno del subproceso, sin cambiar el proceso principal. Rechaza nombres `.env` y `.env.*`, salvo `.env.example`, también en carpetas anidadas y aunque el archivo ya no exista en el disco. No lee el contenido del `.env` local ignorado ni modifica el índice. Un fallo al consultar Git bloquea la comprobación sin mostrar su detalle interno. Sin `.git` propio conserva el escaneo de archivos con un aviso y no consulta un repositorio ancestro. Esto no analiza secretos históricos, índices alternativos ni todos los nombres o formatos posibles de credenciales; la plantilla admitida conserva el escaneo de patrones habitual.
+
 | Riesgo | Control y límite |
 | --- | --- |
 | Exposición de claves | Variables de entorno del servidor; archivos privados ignorados; respuesta de configuración con solo un booleano; lista cerrada de archivos públicos. |

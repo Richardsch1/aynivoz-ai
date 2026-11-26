@@ -102,6 +102,8 @@ npm audit --omit=dev --audit-level=high
 
 CI ejecuta estas comprobaciones tras cada push o pull request. Las pruebas no contactan a Anthropic ni a entidades públicas. El escáner de patrones de secretos es preventivo, limitado y no certifica la ausencia de secretos o datos personales. Consulta [la arquitectura](docs/ARQUITECTURA.md), [seguridad y privacidad](docs/SEGURIDAD-PRIVACIDAD.md) y [el plan de validación comunitaria](docs/VALIDACION.md).
 
+En una copia con metadatos Git propios, `npm run check` también revisa los nombres del índice normal de esa copia y rechaza `.env` y sus variantes privadas, incluso si se añadieron por fuerza o ya no están en el disco. Permite la plantilla `.env.example` y el `.env` local ignorado. Sin metadatos Git propios, como en un ZIP, mantiene el análisis de archivos y avisa de que el índice no se comprobó. Este control no revisa el historial ni índices alternativos y no reemplaza la revisión de lo que vas a publicar.
+
 Para comprobar el archivo guardado por un navegador, sigue la [prueba manual de descarga con datos ficticios](docs/PRUEBAS.md). El mensaje «Descarga iniciada» no acredita por sí solo que el archivo se haya guardado ni que su contenido sea correcto.
 
 ## Contribuir
