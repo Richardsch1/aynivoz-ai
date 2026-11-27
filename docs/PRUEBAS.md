@@ -59,6 +59,38 @@ El archivo `aynivoz-borrador-revisado.txt` contenía 212 bytes, se decodificó c
 
 El mensaje «Descarga iniciada» no acredita por sí solo que se haya guardado el archivo: aquí se verificó el archivo real y su contenido. El resultado se limita a IAB en Windows; siguen pendientes el guardado en otros navegadores y las pruebas con lectores de pantalla. No se usaron datos reales de ciudadanos ni se enviaron solicitudes a entidades.
 
+## Distribución del formulario: 2026-11-27
+
+Prueba manual de regresión en el navegador integrado (IAB), Windows, sin Claude y con opciones y texto ficticios. No es una prueba automática nueva ni una evaluación completa de accesibilidad.
+
+**Reproducción anterior:** en una ventana de 700 × 1000 píxeles, seleccionar «Falta o interrupción de agua» y «Varias viviendas o una comunidad» dejaba los dos campos en una misma fila, con 180 píxeles de ancho cada uno. El texto seleccionado quedaba cortado. No se observó desbordamiento horizontal de la página.
+
+### Procedimiento para repetir la regresión
+
+1. Inicia la aplicación con Claude desactivado. Abre una ventana de prueba de 700 × 1000 píxeles y selecciona las dos opciones anteriores.
+2. Comprueba visualmente el texto, además de medir los campos: ahora deben estar uno debajo del otro y mostrar completas esas dos opciones en este entorno. La medida de `scrollWidth` de un selector nativo no demuestra que su texto esté completo.
+3. Usa Tab desde el tipo de problema y confirma que el siguiente campo es el alcance, con foco visible. Cambia el ancho sin recargar: conserva las selecciones.
+4. Repite en los anchos de la tabla. Comprueba también que el ancho desplazable del documento no supera su ancho interior. La barra de desplazamiento vertical reduce el espacio interior; no se debe comparar solo con el ancho exterior de la ventana.
+5. A 700 píxeles, carga el ejemplo ficticio, revisa su privacidad y registra el reporte. Comprueba que el borrador recibe foco y que no puede descargarse sin revisar. Confirma la revisión y cambia a 1000 píxeles: el borrador y su revisión se conservan. Edita un carácter y comprueba que se retira la revisión y vuelve a bloquearse la descarga. Borra el contenido de prueba al terminar.
+
+### Resultado observado
+
+| Ancho de ventana en píxeles | Ancho de cada selector en píxeles | Distribución |
+| --- | --- | --- |
+| 320 | 269 | Una columna |
+| 390 | 339 | Una columna |
+| 640 | 589 | Una columna |
+| 641 | 319 | Una columna |
+| 700 | 378 | Una columna |
+| 850 | 528 | Una columna |
+| 851 | 461 | Una columna |
+| 1000 | 296 | Dos columnas |
+| 1280 | 387,5 | Dos columnas |
+
+Las medidas corresponden a IAB con su fuente y barra de desplazamiento en Windows. No se observó desplazamiento horizontal de la página en esos anchos y las selecciones se conservaron al cambiar de tamaño. A 700 píxeles se confirmó visualmente el texto completo; a 1280, los campos volvieron a dos columnas con ambas opciones completas. Se comprobó el recorrido de revisión del paso 5 sin descargar ni presentar una solicitud y con Claude desactivado.
+
+**Límite observado:** a 320 píxeles, el campo de alcance permanece en una columna pero su texto seleccionado sigue cortándose parcialmente. El cambio no acredita legibilidad completa con cualquier ancho o fuente. Siguen pendientes ese caso estrecho, el zoom al 200 %, otros navegadores y lectores de pantalla. Los valores, etiquetas, orden del documento y comportamiento de los controles no se modifican.
+
 ## CI
 
 El flujo versionado ejecuta comprobaciones y pruebas en Ubuntu con Node 22 y 24, en push, pull request o ejecución manual. Las acciones de GitHub están fijadas por SHA y sus referencias se contrastaron contra los repositorios oficiales. El resultado remoto debe consultarse en la pestaña Actions; este documento no convierte una configuración de CI en un resultado aprobado.

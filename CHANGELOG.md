@@ -1,5 +1,9 @@
 # Historial
 
+## 2026-11-27
+
+Los campos de tipo de problema y alcance se apilan cuando el formulario no tiene espacio suficiente para dos columnas. A 700 píxeles de ventana se comprobó que las opciones seleccionadas, antes cortadas, aparecen completas. Se conserva el orden de teclado y el flujo de revisión; la legibilidad en pantallas más pequeñas sigue dependiendo del ancho, la fuente y el control nativo.
+
 ## 2026-11-26
 
 La comprobación previa a publicar rechaza archivos de entorno privados incluidos en el índice de Git, aunque falten en el disco, y mantiene permitido el `.env` local ignorado. La plantilla `.env.example` sigue admitida. Una copia sin metadatos Git propios conserva el análisis de archivos y avisa de que no pudo comprobar un índice; un fallo de Git en una copia con metadatos bloquea la comprobación.

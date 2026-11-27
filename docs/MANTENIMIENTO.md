@@ -2,6 +2,26 @@
 
 Este registro describe cambios y comprobaciones realmente realizados. No representa uso comunitario ni resultados de impacto.
 
+## 2026-11-27 · Columnas según el espacio del formulario
+
+**Estado inicial:** copia local limpia, sin cambios ajenos pendientes, y `main` coincidente con el remoto `8820a019e680c9de0e3e4a6103078918609d88c2` tras consultar GitHub. Se revisaron instrucciones, código, pruebas y pendientes. No se encontraron instrucciones locales adicionales ni se leyeron archivos de entorno privados.
+
+**Problema reproducido:** en el navegador integrado a 700 × 1000 píxeles, los campos de tipo de problema y alcance ocupaban una misma fila de 180 píxeles por campo. Las opciones «Falta o interrupción de agua» y «Varias viviendas o una comunidad» aparecían cortadas después de seleccionarlas. No había desbordamiento horizontal de la página; el problema era la legibilidad del valor seleccionado dentro de cada control.
+
+**Cambio:** la cuadrícula interna usa columnas automáticas con un mínimo limitado por el ancho disponible (`min(100%, 18rem)`). Cuando no caben dos columnas, los campos se apilan; al disponer de espacio vuelven a una fila. Se conserva la regla móvil existente. No se cambian opciones, valores, etiquetas, orden del documento ni lógica de registro, privacidad, revisión o descarga. El mínimo es una decisión para las opciones y fuentes actuales, no una garantía de texto completo con cualquier configuración.
+
+**Verificación manual:** IAB en Windows, servidor temporal en loopback con entorno vacío explícito, sin leer `.env` ni habilitar Claude. A 700 píxeles los campos pasaron de 180 a 378 píxeles y ambas selecciones se vieron completas. Se midieron nueve anchos entre 320 y 1280 píxeles, incluidos ambos lados de los cortes de 640 y 850. No se observó desplazamiento horizontal de la página; se conservaron las selecciones, el orden de Tab y el foco visible. A 1000 y 1280 píxeles los campos volvieron a dos columnas. Se guardó una captura local fuera del repositorio.
+
+Con el ejemplo ficticio, el registro enfocó el borrador y exigió revisión antes de descargar. Cambiar de 700 a 1000 píxeles conservó el borrador y su revisión; editar retiró esa confirmación y bloqueó la descarga. Se borró el contenido de prueba. No se descargó un archivo en este recorrido ni se presentó una solicitud. Se añade un procedimiento manual reproducible y la tabla de medidas en [PRUEBAS.md](PRUEBAS.md); no se cuenta como una prueba automática nueva. A 320 píxeles sigue cortándose parcialmente el alcance seleccionado: se conserva ese límite como pendiente, sin atribuir conformidad con WCAG ni una evaluación con lectores de pantalla.
+
+**Comprobaciones locales:** Windows, Node v24.12.0. `npm run check` y `npm test` terminaron sin errores; aprobaron las 77 pruebas automáticas existentes. `git diff --check` y `npm audit --omit=dev --audit-level=high` terminaron correctamente; la auditoría no reportó vulnerabilidades. No se añadieron dependencias, telemetría, gastos ni llamadas reales a Anthropic. La revisión de entrada HTTP no reprodujo un fallo: tres cuerpos grandes fragmentados sin finalizar recibieron HTTP 413 con JSON completo y la página siguió disponible; por ello no se cambió el servidor.
+
+**Referencias técnicas:** [repetición automática en CSS Grid](https://www.w3.org/TR/css-grid-1/#auto-repeat) y [funciones de comparación de valores CSS](https://www.w3.org/TR/css-values-4/#comp-func), consultadas el 27 de noviembre de 2026. El resultado visual acreditado corresponde a IAB; el uso de estas funciones no demuestra por sí solo compatibilidad en todos los navegadores.
+
+**Contraste de fuentes:** las cuatro fuentes primarias del [catálogo](FUENTES.md) devolvieron HTTP 418 al abrirlas hoy. El texto oficial indexado siguió coincidiendo con los contactos y propósitos; los rastreos indicaban tres a cuatro meses. Se conservan contactos y fecha de verificación del 27 de octubre, sin atribuir disponibilidad actual al índice ni considerar los bloqueos prueba de enlaces rotos.
+
+**Publicación y próximos pasos:** los resultados remotos deben confirmarse en [GitHub Actions](https://github.com/Richardsch1/aynivoz-ai/actions); las pruebas locales no acreditan por sí solas CI en Node 22 y 24. Revisar las selecciones largas a 320 píxeles, zoom al 200 %, otros navegadores y lectores de pantalla. Continúan pendientes la validación comunitaria y una eventual prueba con una cuenta real de Anthropic bajo consentimiento y presupuesto propios. No se atribuye adopción ni impacto validado ni se promete elegibilidad para Claude for OSS.
+
 ## 2026-11-26 · Archivos de entorno privados en el índice de Git
 
 **Problema reproducido:** en un repositorio temporal con configuración ficticia, la comprobación aprobaba un `.env` ignorado y seguía aprobando después de añadirlo por fuerza al índice. El escaneo omitía `.env` para permitir su uso local, pero no distinguía si Git lo iba a incluir en un commit. En la copia real se confirmó solo por nombres que `.env` no estaba rastreado; no se leyó su contenido. No se acredita una publicación de credenciales ni un incidente.
